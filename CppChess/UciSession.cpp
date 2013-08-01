@@ -2,6 +2,7 @@
 #include "UciSession.h"
 #include "Board.h"
 #include "Engine.h"
+#include <time.h>
 
 using namespace std;
 
@@ -14,6 +15,26 @@ namespace
 		C_SetBoard,
 		C_Uci,
 	};
+
+	static const char *DAY_NAMES[] =
+	{ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+	static const char *MONTH_NAMES[] =
+	{ "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+	char *DateTimeNow()
+	{
+		const int TIME_LEN = 10;
+		time_t t;
+		struct tm tm;
+		char * buf = (char *) malloc(TIME_LEN+1);
+
+		time(&t);
+		gmtime_s(&tm, &t);
+
+		strftime(buf, TIME_LEN+1, "[%H:%M:%S]", &tm);
+		return buf;
+	}
 }
 
 CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
@@ -72,8 +93,6 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 						}
 						else
 							ASSERT(false);
-
-						// TODO make the movage
 					}
 					continue;
 				}
@@ -97,7 +116,8 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 
 void CUciSession::WriteLine(std::string s)
 {
-	_log << ">> " << s << endl;
+	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
+	_log << dt << ">> " << s << endl;
 	_o << s << endl;
 }
 

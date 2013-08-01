@@ -15,7 +15,9 @@ public:
 	virtual bool is_check() const = 0;
 	virtual bool is_checkmate() const = 0;
 
-	virtual std::vector<CMove> legal_moves() const = 0;
+	virtual chess::SIDE side_on_move() const = 0;
+
+	virtual std::vector<CMove> legal_moves() = 0;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const = 0;
 	virtual std::string san_name(CMove m) const = 0;
 
@@ -33,10 +35,12 @@ public:
 	
 	virtual bool is_check() const override;
 	virtual bool is_checkmate() const override;
-
-	virtual std::vector<CMove> legal_moves() const override;
+	virtual chess::SIDE side_on_move() const override;
+	virtual std::vector<CMove> legal_moves() override;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const override;
 	virtual std::string san_name(CMove m) const override;
+
+	std::string board() const;
 
 	virtual std::string fen() const override;
 
@@ -56,12 +60,19 @@ public:
 		A1, B1, C1, D1, E1, F1, G1, H1,	XA1, XB1, XC1, XD1, XE1, XF1, XG1, XH1,
 	};
 
+	typedef std::map<CPiece, std::set<INT_SQUARES>, less_piece> PieceTable;
+	const PieceTable& piece_table() const;
+
 private:
 	CPiece _board[128];
-	std::map<CPiece, std::set<INT_SQUARES>, less_piece> _pieces;
+	PieceTable _pieces;
 
 	bool is_occupied(INT_SQUARES sq) const;
 	typedef std::map<CPiece, std::map<INT_SQUARES, std::vector<std::vector<INT_SQUARES>>>, less_piece> LookupTables;
+
+	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
+
+	void try_add_move(std::vector<CMove> & v, CMove mv);
 
 	static LookupTables createLookupTables();
 	static void AddOffsetAttacks(INT_SQUARES start, int offset, int max, std::vector<std::vector<INT_SQUARES>> & lt);
