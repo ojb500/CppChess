@@ -4,12 +4,16 @@ namespace chess
 {
 	enum CASTLING_RIGHTS
 	{
+		CR_NONE = 0,
 		CR_WK = 1,
 		CR_WQ = 2,
 		CR_BK = 4,
 		CR_BQ = 8,
 		CR_ALL = 15,
 	};
+
+	inline CASTLING_RIGHTS operator|(CASTLING_RIGHTS a, CASTLING_RIGHTS b)
+	{return static_cast<CASTLING_RIGHTS>(static_cast<int>(a) | static_cast<int>(b));}
 
 	enum SQUARES
 	{

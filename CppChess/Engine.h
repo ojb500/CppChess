@@ -6,6 +6,7 @@ class CEngine
 public:
 	CEngine(CUciSession & s, CBoard b);
 	CMove Think();	
+	void Perft();
 	~CEngine(void);
 
 	typedef std::pair<int, CMove> MoveResult;

@@ -72,31 +72,42 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 		else if (*j == "position")
 		{
 			j++;
+			b = CBoard();
+
 			if (*j == "startpos")
 			{
-				b = CBoard();
-				j++; // moves
-				if (*j == "moves")
-				{
-					j++;
-					while (j != tok.end())
-					{
-						CMove mv = CMove::FromString(*j++);
-						auto lm = b.legal_moves();
-						auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
-						{
-							return m.from() == mv.from() && m.to() == mv.to();
-						});
-						if (m != lm.cend())
-						{
-							b.make_move(*m);
-						}
-						else
-							ASSERT(false);
-					}
-					continue;
-				}
+				j++;
 			}
+			else
+				b.set_fen_position(*j);
+
+			j++;
+			if (j != tok.end())
+			{
+				j++; // moves
+				while (j != tok.end())
+				{
+					CMove mv = CMove::FromString(*j++);
+					auto lm = b.legal_moves();
+					auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
+					{
+						return m.from() == mv.from() && m.to() == mv.to();
+					});
+					if (m != lm.cend())
+					{
+						b.make_move(*m);
+					}
+					else
+						ASSERT(false);
+				}
+				continue;
+			}
+
+		}
+		else if (*j == "perft")
+		{
+			CEngine e(*this, b);
+			e.Perft();
 		}
 		else if (*j == "go")
 		{

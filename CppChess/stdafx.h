@@ -26,6 +26,7 @@
 #include <vector>
 #include <sstream>
 #include <functional>
+#include <chrono>
 
 #include <boost\tokenizer.hpp>
 

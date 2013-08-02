@@ -91,7 +91,7 @@ namespace
 		int mobility = lm.size();
 
 		//TODO
-		return mobility + mat_count;
+		return (mobility / 2) + mat_count;
 	}
 
 	int negamax(CBoard b, int depth, int alpha, int beta, int color)
@@ -115,6 +115,45 @@ namespace
 		return alpha;
 	}
 };
+
+namespace {
+	unsigned long perft(CBoard & b, int depth)
+	{
+		unsigned long nodes = 0;
+		if (depth == 0) return 1;
+		const auto & moves = b.legal_moves();
+		for (const auto & move : moves)
+		{
+			auto mem = b.make_move(move);
+			nodes += perft(b, depth-1);
+			b.unmake_move(mem);
+		}
+	}
+}
+
+void CEngine::Perft()
+{
+	for (int i = 1; i < 4; i++)
+	{
+		{
+			std::stringstream ss;
+			ss << "perft(" << i << ") ";
+			_s.WriteLine(ss.str());
+		}
+		{
+			std::stringstream ss;
+			std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
+			auto nodes = perft(_b, i);
+			std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now() ;
+
+			typedef std::chrono::duration<int,std::milli> millisecs_t ;
+
+			millisecs_t duration( std::chrono::duration_cast<millisecs_t>(end-start) ) ;
+			ss << "  = " << nodes << ", " << duration.count() << " msec";
+			_s.WriteLine(ss.str());
+		}
+	}
+}
 
 CEngine::MoveResult CEngine::negamax_root()
 {

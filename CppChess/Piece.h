@@ -68,6 +68,21 @@ public:
 		return _b;
 	};
 
+	static CPiece from_char(char s)
+	{
+		const char pieces[] = { 'P', 'N', 'B', 'R', 'Q', 'K',
+								'p', 'n', 'b', 'r', 'q', 'k'};
+		for (int i=0; i<_countof(pieces); i++)
+		{
+			if (s == pieces[i])
+			{
+				return CPiece(i > 5 ? chess::BLACK : chess::WHITE, chess::PIECE(1 + (i % 6)));
+			}
+
+		}
+		return CPiece();
+	};
+
 private:
 	short _b;
 };

@@ -191,7 +191,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 
 	const int dist = from - to;
-	
+
 	mem.ep = _en_passant_square;
 
 	// Find out if this move allows an en passant
@@ -347,6 +347,11 @@ chess::SIDE CBoard::side_on_move() const
 	return _side;
 };
 
+void CBoard::set_side_on_move(chess::SIDE s)
+{
+	_side = s;
+};
+
 bool CBoard::is_checkmate() const 
 {
 	return is_check(); 
@@ -374,6 +379,8 @@ std::vector<CMove> CBoard::legal_moves()
 {
 	std::vector<CMove> v;
 	v.reserve(20);
+	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
+
 	for (const auto & piece : _pieces)
 	{
 		if (piece.first.side() != _side)
@@ -393,10 +400,12 @@ std::vector<CMove> CBoard::legal_moves()
 					{
 						for (auto to : ray)
 						{
-							if (is_occupied(to))
+							const CPiece atSquare = _board[to];
+
+							if (atSquare.side() != chess::NONE)
 							{
 								// poss capture
-								if (_board[to].side() != _side)
+								if (atSquare.side() == other_side)
 								{
 									try_add_move(v, CMove(index(from), index(to), CMove::MOVE_CAPTURE));
 								}
@@ -417,9 +426,10 @@ std::vector<CMove> CBoard::legal_moves()
 
 				for (const auto & from : piece.second)
 				{
+
 					{
 						const INT_SQUARES new_to = INT_SQUARES(from + direction);
-						if (!is_occupied(new_to))
+						if (! off_board(new_to) && !is_occupied(new_to))
 						{
 							try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_NONE));
 
@@ -435,16 +445,42 @@ std::vector<CMove> CBoard::legal_moves()
 						}
 					}
 
-					// TODO Captures
+					{
+						// 2x captures, direction +/- 1
+						for (int to = from + direction - 1; to <= from + direction + 1; to += 2) {
+							const INT_SQUARES new_to = INT_SQUARES(to);
+							const CPiece atSquare = _board[new_to];
+							if (! off_board(new_to))
+							{
+								if (atSquare.side() != chess::NONE && atSquare.side() != _side)
+								{
+									try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_NONE));
+								}
+								else
+								{
+									// maybe EP
+									if (_en_passant_square && new_to == *_en_passant_square)
+									{
+										try_add_move(v, CMove(index(from), index(new_to), CMove::FLAGS(CMove::MOVE_EN_PASSANT | CMove::MOVE_CAPTURE)));
+									}
+								}
+							}
+						}
+					}
+
+
 					// TODO promotions
 					// TODO en passant
 
-				}
+				} // end piece loop
 
-			}
+			} // end pawn case
 			break;
 		}
 	}
+
+	// TODO move ordering
+
 	return v;
 };
 
@@ -463,6 +499,100 @@ bool CBoard::is_occupied(CBoard::INT_SQUARES sq) const
 	return _board[sq].piece() != chess::NOTHING;
 }
 
+void CBoard::clear_board()
+{
+	for (int i = 0; i<128; i++)
+	{
+		_board[i] = CPiece();
+	}
+}
+
+void CBoard::set_fen_position(std::string fen)
+{
+
+	if (fen == "1")
+	{
+		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RNB2r2 w KQkq - 0 1");
+		return;
+	}
+
+	clear_board();
+
+	boost::tokenizer<> toks(fen);
+
+	auto tok = toks.begin();
+	for (int row = 0; row < 8; row++)
+	{
+		int col = 0;
+		for (auto c : *tok)
+		{
+			if (c >= '1' && c <= '8')
+			{
+				col += c - '0';
+			}
+			else
+			{
+				_board[row * 16 + col] = CPiece::from_char(c);
+				col++;
+			}
+		}
+		tok++;
+	}
+
+	if (tok.at_end())
+		return;
+
+	// side on move
+
+	if (*tok == "b")
+		set_side_on_move(chess::BLACK);
+	else
+		set_side_on_move(chess::WHITE);
+
+	tok++;
+	if (tok.at_end())
+		return;
+
+	// castling rights
+
+	chess::CASTLING_RIGHTS cr = chess::CR_NONE;
+	for (char c : *tok)
+	{
+		switch (c)
+		{
+		case 'K': cr = cr | chess::CR_WK; break;
+		case 'Q': cr = cr | chess::CR_WQ; break;
+		case 'k': cr = cr | chess::CR_BK; break;
+		case 'q': cr = cr | chess::CR_BQ; break;
+		}
+	}
+
+	tok++;
+	if (tok.at_end())
+		return;
+
+	// ep
+	if (*tok != "-")
+	{
+		
+	}
+	tok++;
+	if (tok.at_end())
+		return;
+
+	// halfmove clock
+	_halfmoves = atoi(tok->c_str());
+	tok++;
+	if (tok.at_end())
+		return;
+
+	// fullmove number
+	_fullmove = atoi(tok->c_str());
+	tok++;
+	ASSERT (tok.at_end());
+
+	ASSERT(fen == this->fen());
+}
 std::string CBoard::fen() const 
 {
 	std::stringstream ss;
@@ -495,6 +625,33 @@ std::string CBoard::fen() const
 		if (row < 7)
 			ss << "/";
 	}
+
+	ss << " ";
+	// side on move
+
+	ss << (_side == chess::WHITE ? "w" : "b");
+	ss << " ";
+
+	// castling rights
+
+	if (_castling != chess::CR_NONE)
+	{
+		if (_castling | chess::CR_WK) ss << "K";
+		if (_castling | chess::CR_WQ) ss << "Q";
+		if (_castling | chess::CR_BK) ss << "k";
+		if (_castling | chess::CR_BQ) ss << "q";
+	}
+	else
+	{
+		ss << "-";
+	}
+
+	ss << " ";
+	ss << _halfmoves;
+	ss << " ";
+	ss << _fullmove;
+
+
 	return ss.str();
 };
 

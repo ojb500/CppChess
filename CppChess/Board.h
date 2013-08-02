@@ -40,6 +40,7 @@ public:
 		A3, B3, C3, D3, E3, F3, G3, H3,	XA3, XB3, XC3, XD3, XE3, XF3, XG3, XH3,
 		A2, B2, C2, D2, E2, F2, G2, H2,	XA2, XB2, XC2, XD2, XE2, XF2, XG2, XH2,
 		A1, B1, C1, D1, E1, F1, G1, H1,	XA1, XB1, XC1, XD1, XE1, XF1, XG1, XH1,
+		INT_SQUARE_FIRST = A8, INT_SQUARE_LAST = XH1
 	};
 
 	typedef std::map<CPiece, std::set<INT_SQUARES>, less_piece> PieceTable;
@@ -62,6 +63,7 @@ public:
 	virtual bool is_check() const override;
 	virtual bool is_checkmate() const override;
 	virtual chess::SIDE side_on_move() const override;
+	void set_side_on_move(chess::SIDE side);
 	virtual std::vector<CMove> legal_moves() override;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const override;
 	virtual std::string san_name(CMove m) const override;
@@ -69,6 +71,7 @@ public:
 	std::string board() const;
 
 	virtual std::string fen() const override;
+	void set_fen_position(std::string);
 
 	virtual long hash() const override;
 
@@ -86,6 +89,8 @@ private:
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 
 	void try_add_move(std::vector<CMove> & v, CMove mv);
+
+	void clear_board();
 
 	static LookupTables createLookupTables();
 	static void AddOffsetAttacks(INT_SQUARES start, int offset, int max, std::vector<std::vector<INT_SQUARES>> & lt);
