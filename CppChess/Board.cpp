@@ -167,7 +167,7 @@ void CBoard::add_piece(CPiece p, chess::SQUARES sq)
 	_pieces[p].insert(i);
 };
 
-CMemento CBoard::make_move(CMove mv) 
+CBoard::CMemento CBoard::make_move(CMove mv) 
 {
 	CMemento mem(mv);
 	if (mv.is_capture())
@@ -182,11 +182,29 @@ CMemento CBoard::make_move(CMove mv)
 
 	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
 
-	//
+
 	const INT_SQUARES to = int_index(mv.to());
 	const INT_SQUARES from = int_index(mv.from());
 
 	const CPiece moved = _board[from];
+
+
+
+	const int dist = from - to;
+	
+	mem.ep = _en_passant_square;
+
+	// Find out if this move allows an en passant
+	// i.e. is this a double pawn push
+	// Offset will be either -32 for white or 32 for black
+	if (mv.is_double_push() && (dist == -32 || dist == 32))
+	{
+		_en_passant_square = INT_SQUARES(from + dist / 2);
+	}
+	else
+	{
+		_en_passant_square.reset();
+	}
 
 	_pieces[moved].erase(from);
 	_pieces[moved].insert(to);
@@ -216,6 +234,9 @@ void CBoard::unmake_move(CMemento m)
 	{
 		_pieces[m.captured].insert(to);
 	}
+
+	_en_passant_square = m.ep;
+	_castling = m.cr;
 
 	_pieces[moved].erase(to);
 	_pieces[moved].insert(from);
@@ -408,15 +429,11 @@ std::vector<CMove> CBoard::legal_moves()
 								const INT_SQUARES new_to = INT_SQUARES(from + 2*direction);
 								if (!is_occupied(new_to))
 								{
-									try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_NONE));
-									// TODO set EP square.
+									try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_DBL_PUSH));
 								}
 							}
 						}
 					}
-
-
-
 
 					// TODO Captures
 					// TODO promotions

@@ -13,7 +13,7 @@ class CBoardMutator
 private:
 	CBoard& _b;
 	CMove _mv;
-	CMemento mem;
+	CBoard::CMemento mem;
 public:
 	CBoardMutator(CBoard& b, const CMove mv)
 		: _b(b)
@@ -33,7 +33,6 @@ namespace
 {
 	int heuristic(CBoard b)
 	{
-
 		int color = (b.side_on_move() == chess::WHITE ? 1 : -1);
 		auto lm = b.legal_moves();
 
@@ -66,14 +65,28 @@ namespace
 		};
 		for (const auto & pc : b.piece_table())
 		{
-			int mult = (pc.first.side() == chess::WHITE ? 1 : -1);
+			int mult = (pc.first.side() == b.side_on_move() ? 1 : -1);
 			mat_count += pc.second.size() * values[pc.first.piece()] * mult;
 			// 2 bishop bonus
 			if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
-				mat_count += 25;
+				mat_count += 25 * mult;
+
+			// central pawn bonus
+			if (pc.first.piece() == chess::PAWN)
+			{
+				for (const auto & pawn : pc.second)
+				{ 
+					const int file07 = pawn & 7;
+					const int rank07 = pawn >> 4;
+					if ((file07 == 3 || file07 == 4)
+						&& (rank07 == 3 || rank07 == 4))
+						mat_count += 10 * mult;
+				}
+			}
 		}
 
 		// central control todo
+
 		// mobility
 		int mobility = lm.size();
 

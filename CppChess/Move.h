@@ -14,6 +14,7 @@ public:
 		MOVE_CAPTURE	= 8,
 		MOVE_PROMOTION  = 16, //  a b c d e f g h	
 		MOVE_EN_PASSANT	= 32,
+		MOVE_DBL_PUSH   = 64,
 	};
 	CMove(chess::SQUARES from, chess::SQUARES to, FLAGS flags)
 		: _from(from)
@@ -74,6 +75,14 @@ public:
 	{
 		return (_flags & MOVE_PROMOTION) != 0;
 	};
+	bool is_double_push()const
+	{
+		return (_flags & MOVE_DBL_PUSH) != 0;
+	};
+	bool is_en_passant_capture()const
+	{
+		return (_flags & MOVE_EN_PASSANT) != 0;
+	};
 	CPiece promotion_piece()const { 
 		return _promotion;
 	};
@@ -85,12 +94,3 @@ private:
 	CPiece _promotion;
 };
 
-struct CMemento
-{
-public:
-	CMemento(CMove mv) : move(mv) {};
-
-	CPiece captured;
-	chess::CASTLING_RIGHTS cr;
-	CMove move;
-};
