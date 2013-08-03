@@ -168,9 +168,10 @@ namespace {
 	}
 }
 
-void CEngine::Perft()
+void CEngine::Perft(int maxdepth)
 {
-	for (int i = 1; i < 4; i++)
+	_s.WriteLine(_b.board());
+	for (int i = 1; i <= maxdepth; i++)
 	{
 		{
 			std::stringstream ss;
@@ -191,6 +192,7 @@ void CEngine::Perft()
 			_s.WriteLine(ss.str());
 		}
 	}
+	_s.WriteLine("done");
 }
 
 CEngine::MoveResult CEngine::negamax_root()

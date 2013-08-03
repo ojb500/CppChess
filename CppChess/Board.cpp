@@ -594,15 +594,16 @@ void CBoard::set_fen_position(std::string fen)
 
 	// castling rights
 
-	chess::CASTLING_RIGHTS cr = chess::CR_NONE;
+	
+	_castling = chess::CR_NONE;
 	for (char c : *tok)
 	{
 		switch (c)
 		{
-		case 'K': cr = cr | chess::CR_WK; break;
-		case 'Q': cr = cr | chess::CR_WQ; break;
-		case 'k': cr = cr | chess::CR_BK; break;
-		case 'q': cr = cr | chess::CR_BQ; break;
+		case 'K': _castling = _castling | chess::CR_WK; break;
+		case 'Q': _castling = _castling | chess::CR_WQ; break;
+		case 'k': _castling = _castling | chess::CR_BK; break;
+		case 'q': _castling = _castling | chess::CR_BQ; break;
 		}
 	}
 
@@ -675,10 +676,10 @@ std::string CBoard::fen() const
 
 	if (_castling != chess::CR_NONE)
 	{
-		if (_castling | chess::CR_WK) ss << "K";
-		if (_castling | chess::CR_WQ) ss << "Q";
-		if (_castling | chess::CR_BK) ss << "k";
-		if (_castling | chess::CR_BQ) ss << "q";
+		if (_castling & chess::CR_WK) ss << "K";
+		if (_castling & chess::CR_WQ) ss << "Q";
+		if (_castling & chess::CR_BK) ss << "k";
+		if (_castling & chess::CR_BQ) ss << "q";
 	}
 	else
 	{

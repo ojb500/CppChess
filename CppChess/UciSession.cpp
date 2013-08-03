@@ -112,7 +112,14 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 		else if (*j == "perft")
 		{
 			CEngine e(*this, b);
-			e.Perft();
+			++j;
+			int maxdepth = 4;
+			if (!j.at_end())
+			{
+				maxdepth = atoi(j->c_str());
+				++j;
+			}
+			e.Perft(maxdepth);
 		}
 		else if (*j == "tests")
 		{
