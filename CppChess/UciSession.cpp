@@ -39,15 +39,20 @@ namespace
 }
 
 CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
-	: _o(o.rdbuf())
+	: _i(i)
+	, _o(o.rdbuf())
 	, _log(log.rdbuf())
+{
+}
+
+void CUciSession::listen()
 {
 	string s;
 	CBoard b;
 
-	while (getline(i, s, '\n'))
+	while (getline(_i, s, '\n'))
 	{
-	
+
 		const std::string dt(DateTimeNow()); // TODO EVIL?!?!
 		_log << dt << " << " << s << endl;
 
@@ -79,11 +84,7 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 			j++;
 			b = CBoard();
 
-			if (*j == "startpos")
-			{
-				j++;
-			}
-			else
+			if (*j != "startpos")
 				b.set_fen_position(*j);
 
 			j++;
@@ -140,7 +141,6 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 
 	}
 }
-
 void CUciSession::WriteLine(std::string s)
 {
 	const std::string dt(DateTimeNow()); // TODO EVIL?!?!

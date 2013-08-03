@@ -15,6 +15,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		exit(1);
 
 	CUciSession uci(cin, cout, logfile);
+	uci.listen();
 	system("pause");
 	logfile.close();
 }

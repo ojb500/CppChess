@@ -21,6 +21,13 @@ class CMove
 {
 public:
 
+	CMove()
+		: _from(chess::SQUARE_LAST)
+		, _to(chess::SQUARE_LAST)
+		, _flags(MOVE_NONE)
+		, _promotion(chess::NOTHING)
+	{
+	}
 
 	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags)
 		: _from(from)
@@ -67,6 +74,16 @@ public:
 	bool is_castle()const
 	{
 		return (_flags & (MOVE_OO | MOVE_OOO)) != 0;
+	}
+
+	bool is_oo()const
+	{
+		return (_flags & MOVE_OO) != 0;
+	}
+
+	bool is_ooo()const
+	{
+		return (_flags & MOVE_OOO) != 0;
 	}
 
 	bool is_check()const

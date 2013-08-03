@@ -8,7 +8,9 @@ public:
 	void WriteLine(std::string s);
 	void WriteLogLine(std::string s);
 
+	void listen();
 private:
+	std::istream & _i;
 
 	std::ostream _o;
 	std::ostream _log;

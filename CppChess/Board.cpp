@@ -333,6 +333,10 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 
 };
 
+int CBoard::ply() const
+{
+	return _halfmoves;
+};
 bool CBoard::is_check() const 
 {
 	const CPiece moving_king(side_on_move(), chess::KING);
@@ -374,6 +378,28 @@ void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
 	}
 }
 
+void CBoard::try_add_castling_move(std::vector<CMove> & v, CMove mv)
+{
+	// verify the intervening squares are clear
+	// TODO 960
+	const chess::SIDE other_side = _side == chess::WHITE ? chess::BLACK : chess::WHITE;
+	ASSERT(mv.is_castle());
+	if (mv.is_ooo())
+	{
+		// check d1/d8
+		const INT_SQUARES dn = int_index(chess::SQUARES(mv.to() + 1));
+		if (!is_occupied(dn) && !is_square_attacked(other_side, dn))
+			v.push_back(mv);
+	}
+	else
+	{
+		// check f1/f8
+		const INT_SQUARES fn = int_index(chess::SQUARES(mv.to() - 1));
+		if (!is_occupied(fn) && !is_square_attacked(other_side, fn))
+			v.push_back(mv);
+	}
+}
+
 std::vector<CMove> CBoard::legal_moves() 
 {
 	std::vector<CMove> v;
@@ -384,6 +410,28 @@ std::vector<CMove> CBoard::legal_moves()
 	{
 		if (piece.first.side() != _side)
 			continue;
+
+		if (piece.first.piece() == chess::KING)
+		{
+			// castling
+			const INT_SQUARES k = *piece.second.begin();
+			// TODO 960
+			const chess::CASTLING_RIGHTS my_castling = 
+				chess::CASTLING_RIGHTS(_castling &
+				(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
+
+			if (my_castling)
+			{
+				if (my_castling & chess::CR_WQ)
+					try_add_castling_move(v, CMove(chess::E1, chess::C1, MOVE_OOO));
+				if (my_castling & chess::CR_BQ)
+					try_add_castling_move(v, CMove(chess::E8, chess::C8, MOVE_OOO));
+				if (my_castling & chess::CR_WK)
+					try_add_castling_move(v, CMove(chess::E1, chess::G1, MOVE_OO));
+				if (my_castling & chess::CR_BK)
+					try_add_castling_move(v, CMove(chess::E8, chess::G8, MOVE_OO));
+			}
+		}
 
 		switch (piece.first.piece())
 		{
@@ -536,6 +584,11 @@ void CBoard::set_fen_position(std::string fen)
 		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RNB2r2 w KQkq - 0 1");
 		return;
 	}
+	if (fen == "P2")
+	{
+		set_fen_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+		return;
+	}
 	if (fen == "P3")
 	{
 		set_fen_position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
@@ -594,7 +647,7 @@ void CBoard::set_fen_position(std::string fen)
 
 	// castling rights
 
-	
+
 	_castling = chess::CR_NONE;
 	for (char c : *tok)
 	{
@@ -723,6 +776,8 @@ std::string CBoard::board() const
 				ss << " .";
 			}
 		}
+		if ((row == 0 && _side == chess::BLACK) || (row == 7 && _side == chess::WHITE))
+			ss << " *";
 		ss << std::endl;
 	}
 	return ss.str();

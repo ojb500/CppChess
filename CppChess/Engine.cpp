@@ -7,6 +7,7 @@ CEngine::CEngine(CUciSession & us, CBoard b)
 	, _s(us)
 	, _nodes(0)
 {
+	_pv.resize(100);
 }
 
 class CBoardMutator
@@ -32,91 +33,91 @@ public:
 
 namespace
 {
-	int heuristic(CBoard b)
+	int MoveScore(const CMove& m)
 	{
-		int color = (b.side_on_move() == chess::WHITE ? 1 : -1);
-		auto lm = b.legal_moves();
-
-		if (!lm.size())
+		int s=0;
+		if (m.is_double_push())
+			s+=1;
+		if (m.is_capture())
+			s+=3;
+		if (m.is_check())
+			s+=3;
+		if (m.is_promotion())
+			s+=3;
+		const int tofile = m.to() & 7;
+		const int torank = m.to() >> 3;
+		if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
 		{
-			// checkmated or draw
-			// todo
-			if (b.is_check())
-			{
-				// checkmated
-				return -10000;
-			}
-			else
-			{
-				return 0; // drawn position
-			}
-			ASSERT(false);
+			s+=1;
 		}
 
-		// material count
-		int mat_count = 0;
-		const int values[] = {
-			0, // NOTHING = 0,
-			100, // PAWN = 1,
-			300, // KNIGHT = 2,
-			300, // BISHOP = 3,
-			500, // ROOK = 4,
-			900, // QUEEN = 5,
-			100000, // KING = 6,
-		};
-		for (const auto & pc : b.piece_table())
-		{
-			int mult = (pc.first.side() == b.side_on_move() ? 1 : -1);
-			mat_count += pc.second.size() * values[pc.first.piece()] * mult;
-			// 2 bishop bonus
-			if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
-				mat_count += 25 * mult;
-
-			// central pawn bonus
-			if (pc.first.piece() == chess::PAWN)
-			{
-				for (const auto & pawn : pc.second)
-				{ 
-					const int file07 = pawn & 7;
-					const int rank07 = pawn >> 4;
-					if ((file07 == 3 || file07 == 4)
-						&& (rank07 == 3 || rank07 == 4))
-						mat_count += 10 * mult;
-				}
-			}
-		}
-
-		// central control todo
-
-		// mobility
-		int mobility = lm.size();
-
-		//TODO
-		return (mobility / 2) + mat_count;
-	}
-
-	int negamax(CBoard b, int depth, int alpha, int beta, int color)
-	{
-		if (depth == 0)
-			return color * heuristic(b);
-		const auto lm = b.legal_moves();
-		if (lm.size() == 0)
-		{
-			return color * heuristic(b);
-		}
-		for (const auto & mv : lm)
-		{
-			CBoardMutator mut(b,mv);
-			const int val = -negamax(b, depth - 1, -beta, -alpha, -color);
-			if (val >= beta)
-				return val;
-			if (val > alpha)
-				alpha = val;
-		}
-		return alpha;
+		return s;
 	}
 };
 
+/*s*/ int CEngine::heuristic(CBoard& b)
+{
+	int color = (b.side_on_move() == chess::WHITE ? 1 : -1);
+	auto lm = b.legal_moves();
+
+	if (!lm.size())
+	{
+		// checkmated or draw
+		// todo
+		if (b.is_check())
+		{
+			// checkmated
+			return -10000;
+		}
+		else
+		{
+			return 0; // drawn position
+		}
+		ASSERT(false);
+	}
+
+	// material count
+	int mat_count = 0;
+	const int values[] = {
+		0, // NOTHING = 0,
+		100, // PAWN = 1,
+		300, // KNIGHT = 2,
+		300, // BISHOP = 3,
+		500, // ROOK = 4,
+		900, // QUEEN = 5,
+		100000, // KING = 6,
+	};
+	for (const auto & pc : b.piece_table())
+	{
+		int mult = (pc.first.side() == b.side_on_move() ? 1 : -1);
+		mat_count += pc.second.size() * values[pc.first.piece()] * mult;
+		// 2 bishop bonus
+		if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
+			mat_count += 25 * mult;
+
+		// central pawn bonus
+		if (pc.first.piece() == chess::PAWN)
+		{
+			for (const auto & pawn : pc.second)
+			{ 
+				const int file07 = pawn & 7;
+				const int rank07 = pawn >> 4;
+				if ((file07 == 3 || file07 == 4)
+					&& (rank07 == 3 || rank07 == 4))
+					mat_count += 10 * mult;
+			}
+		}
+	}
+
+	// central control todo
+
+	// mobility
+	int mobility = lm.size();
+
+	//TODO
+	return (mobility / 2) + mat_count;
+
+}
 namespace {
 	struct PerftResult
 	{
@@ -127,7 +128,7 @@ namespace {
 		unsigned long checks;
 		unsigned long castles;
 
-		PerftResult() : nodes(1), ep(0), captures(0), promotions(0), checks(0), castles(0) {}
+		PerftResult() : nodes(0), ep(0), captures(0), promotions(0), checks(0), castles(0) {}
 		PerftResult& operator+= (const PerftResult & other)
 		{
 			nodes += other.nodes;
@@ -142,9 +143,12 @@ namespace {
 	PerftResult perft(CBoard & b, int depth)
 	{
 		PerftResult res;
-		if (depth == 0) return res;
-		res.nodes = 0;
 		const auto & moves = b.legal_moves();
+		if (depth == 1)
+		{
+			res.nodes = moves.size();
+			return res;
+		}
 		for (const auto & move : moves)
 		{
 			{
@@ -195,10 +199,41 @@ void CEngine::Perft(int maxdepth)
 	_s.WriteLine("done");
 }
 
+int CEngine::negamax(int depth, int alpha, int beta, int color)
+{
+	if (depth == 0)
+		return color * heuristic(_b);
+	auto lm = _b.legal_moves();
+	if (lm.size() == 0)
+	{
+		return color * heuristic(_b);
+	}
+	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
+	{
+		return MoveScore(m1) > MoveScore(m2);
+	});
+
+	for (const auto & mv : lm)
+	{
+		{
+			CBoardMutator mut(_b,mv);
+			const int val = -negamax(depth - 1, -beta, -alpha, -color);
+			if (val >= beta)
+				return val;
+			if (val > alpha)
+			{
+				_pv[_b.ply() - 1] = mv;
+				alpha = val;
+			}
+		}
+	}
+	return alpha;
+}
+
 CEngine::MoveResult CEngine::negamax_root()
 {
 
-	const auto lm = _b.legal_moves();
+	auto lm = _b.legal_moves();
 	if (lm.size() == 0)
 	{
 		ASSERT(false);
@@ -207,28 +242,58 @@ CEngine::MoveResult CEngine::negamax_root()
 	int beta = std::numeric_limits<int>::max();
 	const int color = 1;
 #ifdef _DEBUG
-	const int depth = 5;
+	const int depth = 4;
 #else
-	const int depth = 6;
+	const int depth = 5;
 #endif
 
 
 	boost::optional<CMove> best;
 
+	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
+	{
+		return MoveScore(m1) > MoveScore(m2);
+	});
+
+	{
+		std::stringstream ss;
+		ss << "Legal moves (" << lm.size() << "): ";
+		for (const auto & mv : lm)
+			ss << mv.long_algebraic();
+		_s.WriteLogLine(ss.str());
+	}
+
 	int n = 1;
 	for (const auto & mv : lm)
 	{
-		write_current_move(mv.long_algebraic(), n++); 
-		CBoardMutator mut(_b,mv);
-		const int val = -negamax(_b, depth - 1, -beta, -alpha, -color);
-		if (val >= beta)
-			continue;
-		if (val > alpha)
+		write_current_move(mv.long_algebraic(), n++);
 		{
-			write_best_move(mv.long_algebraic(), val);
-			best = mv;
-			alpha = val;
+			CBoardMutator mut(_b,mv);
+			const int val = -negamax(depth - 1, -beta, -alpha, -color);
+
+			if (val >= beta)
+				continue;
+			if (val > alpha)
+			{
+				write_best_move(mv.long_algebraic(), val);
+				_pv[_b.ply() - 1] = mv;
+				best = mv;
+				alpha = val;
+			}
 		}
+	}
+	{
+		std::stringstream ss;
+		ss << "info pv ";
+		for (auto i = _pv.begin(); i != _pv.end(); ++i )
+		{
+			if (i->to() == chess::SQUARE_LAST && i->from() == chess::SQUARE_LAST)
+				break;
+
+			ss << i->long_algebraic();
+			ss << " ";
+		}
+		_s.WriteLine(ss.str());
 	}
 	return std::make_pair(alpha, *best);
 }
@@ -249,6 +314,7 @@ void CEngine::write_best_move(std::string s, int i)
 
 CMove CEngine::Think()
 {
+	_s.WriteLogLine("Thinking\n" + _b.board());
 	_nodes = 0;
 
 	auto result = negamax_root();

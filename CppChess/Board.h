@@ -67,6 +67,8 @@ public:
 	virtual std::vector<CMove> legal_moves() override;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const override;
 	virtual std::string san_name(CMove m) const override;
+	
+	int ply() const;
 
 	std::string board() const;
 
@@ -89,6 +91,7 @@ private:
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 
 	void try_add_move(std::vector<CMove> & v, CMove mv);
+	void try_add_castling_move(std::vector<CMove> & v, CMove mv);
 
 	void clear_board();
 
