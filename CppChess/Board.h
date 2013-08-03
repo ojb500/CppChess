@@ -14,7 +14,7 @@ public:
 	//	virtual void unmake_move(CMemento m) = 0;
 
 	virtual bool is_check() const = 0;
-	virtual bool is_checkmate() const = 0;
+	virtual bool is_checkmate() = 0;
 
 	virtual chess::SIDE side_on_move() const = 0;
 
@@ -61,7 +61,7 @@ public:
 	void unmake_move(CMemento m);
 
 	virtual bool is_check() const override;
-	virtual bool is_checkmate() const override;
+	virtual bool is_checkmate() override;
 	virtual chess::SIDE side_on_move() const override;
 	void set_side_on_move(chess::SIDE side);
 	virtual std::vector<CMove> legal_moves() override;
@@ -104,4 +104,6 @@ private:
 
 	int _halfmoves;
 	int _fullmove;
+
+	friend class CTests;
 };

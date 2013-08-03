@@ -5,6 +5,7 @@
 CEngine::CEngine(CUciSession & us, CBoard b)
 	: _b(b)
 	, _s(us)
+	, _nodes(0)
 {
 }
 
@@ -117,17 +118,53 @@ namespace
 };
 
 namespace {
-	unsigned long perft(CBoard & b, int depth)
+	struct PerftResult
 	{
-		unsigned long nodes = 0;
-		if (depth == 0) return 1;
+		unsigned long nodes;
+		unsigned long ep;
+		unsigned long captures;
+		unsigned long promotions;
+		unsigned long checks;
+		unsigned long castles;
+
+		PerftResult() : nodes(1), ep(0), captures(0), promotions(0), checks(0), castles(0) {}
+		PerftResult& operator+= (const PerftResult & other)
+		{
+			nodes += other.nodes;
+			ep += other.ep;
+			captures += other.captures;
+			promotions += other.promotions;
+			checks += other.checks;
+			return *this;
+		};
+	};
+
+	PerftResult perft(CBoard & b, int depth)
+	{
+		PerftResult res;
+		if (depth == 0) return res;
+		res.nodes = 0;
 		const auto & moves = b.legal_moves();
 		for (const auto & move : moves)
 		{
+			{
+				// test flags
+				if (move.is_capture())
+					res.captures++;
+				if (move.is_check())
+					res.checks++;
+				if (move.is_promotion())
+					res.promotions++;
+				if (move.is_en_passant_capture())
+					res.ep++;
+				if (move.is_castle())
+					res.castles++;
+			}
 			auto mem = b.make_move(move);
-			nodes += perft(b, depth-1);
+			res += perft(b, depth-1);
 			b.unmake_move(mem);
 		}
+		return res;
 	}
 }
 
@@ -149,7 +186,8 @@ void CEngine::Perft()
 			typedef std::chrono::duration<int,std::milli> millisecs_t ;
 
 			millisecs_t duration( std::chrono::duration_cast<millisecs_t>(end-start) ) ;
-			ss << "  = " << nodes << ", " << duration.count() << " msec";
+			ss << "  " << "= " << nodes.nodes << ", " << duration.count() << " msec" << std::endl;
+			ss << "    caps " << nodes.captures << ", eps " << nodes.ep << ", oo " << nodes.castles << ", proms " << nodes.promotions << ", checks " << nodes.checks;
 			_s.WriteLine(ss.str());
 		}
 	}
@@ -209,6 +247,8 @@ void CEngine::write_best_move(std::string s, int i)
 
 CMove CEngine::Think()
 {
+	_nodes = 0;
+
 	auto result = negamax_root();
 	return result.second;
 }

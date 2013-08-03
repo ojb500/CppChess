@@ -3,6 +3,7 @@
 #include "Board.h"
 #include "Engine.h"
 #include <time.h>
+#include "Tests.h"
 
 using namespace std;
 
@@ -46,8 +47,12 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 
 	while (getline(i, s, '\n'))
 	{
-		_log << "<< " << s << endl;
-		boost::tokenizer<> tok(s);
+	
+		const std::string dt(DateTimeNow()); // TODO EVIL?!?!
+		_log << dt << " << " << s << endl;
+
+		boost::char_separator<char> sep(" ");
+		boost::tokenizer<boost::char_separator<char>> tok(s, sep);
 
 		auto j = tok.begin();
 
@@ -109,6 +114,10 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 			CEngine e(*this, b);
 			e.Perft();
 		}
+		else if (*j == "tests")
+		{
+			CTests tests;
+		}
 		else if (*j == "go")
 		{
 			CEngine e(*this, b);
@@ -128,9 +137,16 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 void CUciSession::WriteLine(std::string s)
 {
 	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
-	_log << dt << ">> " << s << endl;
+	_log << dt << " >> " << s << endl;
 	_o << s << endl;
 }
+
+void CUciSession::WriteLogLine(std::string s)
+{
+	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
+	_log << dt << " # " << s << endl;
+}
+
 
 CUciSession::~CUciSession(void)
 {

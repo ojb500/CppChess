@@ -48,4 +48,9 @@ namespace chess
 		int row = 7 - (rank - '1');
 		return SQUARES(row * 8 + col);
 	};
+
+	inline std::string name_of_square(chess::SQUARES s)
+	{
+		return SQUARE_STRINGS[s];
+	};
 };

@@ -248,6 +248,15 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 	const auto & diags = _lookups[CPiece(attacker, chess::BISHOP)][square]; // or Q or K
 	const auto & horizs = _lookups[CPiece(attacker, chess::ROOK)][square];  // or Q or K
 	const auto & knights = _lookups[CPiece(attacker, chess::KNIGHT)][square];
+	const int white_pawns[] = { +15, +17 };
+	const int black_pawns[] = { -15, -17 };
+
+	for (const auto ray : (attacker == chess::WHITE ? white_pawns : black_pawns))
+	{
+		const auto piece = _board[INT_SQUARES(square + ray)];
+		if (piece.side() == attacker && piece.piece() == chess::PAWN)
+			return true;
+	}
 
 	for (const auto & ray : diags)
 	{
@@ -268,12 +277,9 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 					{
 						return true;
 					}
-					else
-					{
-						break;
-					}
 				}
 			}
+			break;
 		}
 	}
 
@@ -296,12 +302,9 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 					{
 						return true;
 					}
-					else
-					{
-						break;
-					}
 				}
 			}
+			break;
 		}
 	}
 
@@ -320,10 +323,6 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 						piece.piece() == chess::KNIGHT)
 					{
 						return true;
-					}
-					else
-					{
-						break;
 					}
 				}
 			}
@@ -352,9 +351,9 @@ void CBoard::set_side_on_move(chess::SIDE s)
 	_side = s;
 };
 
-bool CBoard::is_checkmate() const 
+bool CBoard::is_checkmate() 
 {
-	return is_check(); 
+	return is_check() && ! legal_moves().size(); 
 };
 
 void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
@@ -378,7 +377,7 @@ void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
 std::vector<CMove> CBoard::legal_moves() 
 {
 	std::vector<CMove> v;
-	v.reserve(20);
+	v.reserve(40);
 	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
 
 	for (const auto & piece : _pieces)
@@ -407,11 +406,11 @@ std::vector<CMove> CBoard::legal_moves()
 								// poss capture
 								if (atSquare.side() == other_side)
 								{
-									try_add_move(v, CMove(index(from), index(to), CMove::MOVE_CAPTURE));
+									try_add_move(v, CMove(index(from), index(to), MOVE_CAPTURE));
 								}
 								break;
 							}
-							try_add_move(v, CMove(index(from), index(to), CMove::MOVE_NONE));
+							try_add_move(v, CMove(index(from), index(to), MOVE_NONE));
 						}
 					}
 				}
@@ -423,6 +422,8 @@ std::vector<CMove> CBoard::legal_moves()
 				const int direction = (_side == chess::WHITE ? -16 : 16);
 				// Home rank depends on side
 				const int homeRank = (_side == chess::WHITE ? 6 : 1);
+				// Destination rank depends on side
+				const int destRank = (_side == chess::WHITE ? 0 : 7);
 
 				for (const auto & from : piece.second)
 				{
@@ -431,15 +432,25 @@ std::vector<CMove> CBoard::legal_moves()
 						const INT_SQUARES new_to = INT_SQUARES(from + direction);
 						if (! off_board(new_to) && !is_occupied(new_to))
 						{
-							try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_NONE));
-
-							// If on home rank we can move 2 squares as well, provided not blocked
-							if ((from >> 4) == homeRank)
+							// Test promotion
+							if ((new_to >> 4) == destRank)
 							{
-								const INT_SQUARES new_to = INT_SQUARES(from + 2*direction);
-								if (!is_occupied(new_to))
+								const chess::PIECE promotablePieces[] = {chess::QUEEN, chess::KNIGHT, chess::ROOK, chess::BISHOP};
+								for (chess::PIECE p : promotablePieces)
+									try_add_move(v, CMove(index(from), index(new_to), MOVE_PROMOTION, p));
+							}
+							else
+							{
+								try_add_move(v, CMove(index(from), index(new_to), MOVE_NONE));
+
+								// If on home rank we can move 2 squares as well, provided not blocked
+								if ((from >> 4) == homeRank)
 								{
-									try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_DBL_PUSH));
+									const INT_SQUARES new_to = INT_SQUARES(from + 2*direction);
+									if (!is_occupied(new_to))
+									{
+										try_add_move(v, CMove(index(from), index(new_to), MOVE_DBL_PUSH));
+									}
 								}
 							}
 						}
@@ -454,14 +465,23 @@ std::vector<CMove> CBoard::legal_moves()
 							{
 								if (atSquare.side() != chess::NONE && atSquare.side() != _side)
 								{
-									try_add_move(v, CMove(index(from), index(new_to), CMove::MOVE_NONE));
+									if ((new_to >> 4) == destRank)
+									{
+										const chess::PIECE promotablePieces[] = {chess::QUEEN, chess::KNIGHT, chess::ROOK, chess::BISHOP};
+										for (chess::PIECE p : promotablePieces)
+											try_add_move(v, CMove(index(from), index(new_to), MOVE_CAPTURE | MOVE_PROMOTION, p));
+									}
+									else
+									{
+										try_add_move(v, CMove(index(from), index(new_to), MOVE_CAPTURE));
+									}
 								}
 								else
 								{
 									// maybe EP
 									if (_en_passant_square && new_to == *_en_passant_square)
 									{
-										try_add_move(v, CMove(index(from), index(new_to), CMove::FLAGS(CMove::MOVE_EN_PASSANT | CMove::MOVE_CAPTURE)));
+										try_add_move(v, CMove(index(from), index(new_to), MOVE_FLAGS(MOVE_EN_PASSANT | MOVE_CAPTURE)));
 									}
 								}
 							}
@@ -505,6 +525,7 @@ void CBoard::clear_board()
 	{
 		_board[i] = CPiece();
 	}
+	_pieces.clear();
 }
 
 void CBoard::set_fen_position(std::string fen)
@@ -515,10 +536,27 @@ void CBoard::set_fen_position(std::string fen)
 		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RNB2r2 w KQkq - 0 1");
 		return;
 	}
+	if (fen == "P3")
+	{
+		set_fen_position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+		return;
+	}
+	if (fen == "P4")
+	{
+		set_fen_position("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+		return;
+	}
+	if (fen == "P5")
+	{
+		set_fen_position("rnbqkb1r/pp1p1ppp/2p5/4P3/2B5/8/PPP1NnPP/RNBQK2R w KQkq - 0 6");
+		return;
+	}
+
 
 	clear_board();
 
-	boost::tokenizer<> toks(fen);
+	boost::char_separator<char> sep(" /");
+	boost::tokenizer<boost::char_separator<char>> toks(fen, sep);
 
 	auto tok = toks.begin();
 	for (int row = 0; row < 8; row++)
@@ -532,7 +570,8 @@ void CBoard::set_fen_position(std::string fen)
 			}
 			else
 			{
-				_board[row * 16 + col] = CPiece::from_char(c);
+				const auto piece = CPiece::from_char(c);
+				add_piece(piece, chess::SQUARES(row * 8 + col));
 				col++;
 			}
 		}
@@ -574,7 +613,7 @@ void CBoard::set_fen_position(std::string fen)
 	// ep
 	if (*tok != "-")
 	{
-		
+
 	}
 	tok++;
 	if (tok.at_end())
@@ -640,6 +679,17 @@ std::string CBoard::fen() const
 		if (_castling | chess::CR_WQ) ss << "Q";
 		if (_castling | chess::CR_BK) ss << "k";
 		if (_castling | chess::CR_BQ) ss << "q";
+	}
+	else
+	{
+		ss << "-";
+	}
+
+	// ep square
+	ss << " ";
+	if (_en_passant_square)
+	{
+		ss << name_of_square(index(*_en_passant_square));
 	}
 	else
 	{

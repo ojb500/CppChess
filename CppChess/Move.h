@@ -2,30 +2,36 @@
 #include "Piece.h"
 #include "Square.h"
 
+enum MOVE_FLAGS
+{
+	MOVE_NONE		= 0,
+	MOVE_OO			= 1,
+	MOVE_OOO		= 2,
+	MOVE_CHECK		= 4,
+	MOVE_CAPTURE	= 8,
+	MOVE_PROMOTION  = 16, //  a b c d e f g h	
+	MOVE_EN_PASSANT	= 32,
+	MOVE_DBL_PUSH   = 64,
+};
+
+inline MOVE_FLAGS operator|(MOVE_FLAGS a, MOVE_FLAGS b)
+{return static_cast<MOVE_FLAGS>(static_cast<int>(a) | static_cast<int>(b));}
+
 class CMove
 {
 public:
-	enum FLAGS
-	{
-		MOVE_NONE		= 0,
-		MOVE_OO			= 1,
-		MOVE_OOO		= 2,
-		MOVE_CHECK		= 4,
-		MOVE_CAPTURE	= 8,
-		MOVE_PROMOTION  = 16, //  a b c d e f g h	
-		MOVE_EN_PASSANT	= 32,
-		MOVE_DBL_PUSH   = 64,
-	};
-	CMove(chess::SQUARES from, chess::SQUARES to, FLAGS flags)
+
+
+	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags)
 		: _from(from)
 		, _to(to)
 		, _flags(flags)
-		, _promotion()
+		, _promotion(chess::NOTHING)
 	{
 		ASSERT(!(flags & MOVE_PROMOTION));
 	};
 
-	CMove(chess::SQUARES from, chess::SQUARES to, FLAGS flags, CPiece promotion)
+	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags, chess::PIECE promotion)
 		: _from(from)
 		, _to(to)
 		, _flags(flags)
@@ -83,14 +89,14 @@ public:
 	{
 		return (_flags & MOVE_EN_PASSANT) != 0;
 	};
-	CPiece promotion_piece()const { 
+	chess::PIECE promotion_piece()const { 
 		return _promotion;
 	};
 
 private:
 	chess::SQUARES _from;
 	chess::SQUARES _to;
-	FLAGS _flags;
-	CPiece _promotion;
+	MOVE_FLAGS _flags;
+	chess::PIECE _promotion;
 };
 

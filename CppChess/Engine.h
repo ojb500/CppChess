@@ -16,6 +16,8 @@ private:
 	void write_current_move(std::string, int);
 	void write_best_move(std::string, int);
 
+	int _nodes;
+
 	CUciSession & _s;
 	CBoard _b;
 };

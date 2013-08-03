@@ -5,9 +5,8 @@ public:
 	CUciSession(std::istream & i, std::ostream & o, std::ostream & log);
 	~CUciSession(void);
 
-	void CmdUci();
-	void CmdSetboard();
 	void WriteLine(std::string s);
+	void WriteLogLine(std::string s);
 
 private:
 
