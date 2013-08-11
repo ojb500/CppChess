@@ -3,6 +3,7 @@
 #include "Square.h"
 #include "Move.h"
 #include <boost/optional.hpp>
+#include "Zobrist.h"
 
 class CBoardInterface
 {
@@ -24,7 +25,7 @@ public:
 
 	virtual std::string fen() const = 0;
 
-	virtual long hash() const = 0;
+	virtual uint64_t hash() const = 0;
 };
 
 class CBoard: public CBoardInterface
@@ -48,11 +49,12 @@ public:
 	struct CMemento
 	{
 	public:
-		CMemento(CMove mv) : move(mv), cr(chess::CR_ALL), ep() {};
+		CMemento(CMove mv) : move(mv), cr(chess::CR_ALL), ep(), hash(0) {};
 
+		CZobrist hash;
 		CPiece captured;
 		chess::CASTLING_RIGHTS cr;
-		boost::optional<CBoard::INT_SQUARES> ep;
+		CBoard::INT_SQUARES ep;
 		CMove move;
 	};
 
@@ -75,7 +77,7 @@ public:
 	virtual std::string fen() const override;
 	void set_fen_position(std::string);
 
-	virtual long hash() const override;
+	virtual uint64_t hash() const override;
 
 	CBoard();
 
@@ -103,10 +105,12 @@ private:
 	chess::SIDE _side;
 	chess::CASTLING_RIGHTS _castling;
 
-	boost::optional<INT_SQUARES> _en_passant_square;
+	INT_SQUARES _en_passant_square;
 
 	int _halfmoves;
 	int _fullmove;
 
 	friend class CTests;
+
+	CZobrist _hash;
 };

@@ -2,58 +2,78 @@
 #include "Engine.h"
 #include <boost/optional.hpp>
 
-CEngine::CEngine(CUciSession & us, CBoard b)
-	: _b(b)
-	, _s(us)
+CEngine::CEngine(CUciSession & us)
+	: _s(us)
 	, _nodes(0)
 {
 	_pv.resize(100);
 }
 
+void CEngine::set_position(CBoard& b)
+{
+	_b = b;
+}
 class CBoardMutator
 {
 private:
 	CBoard& _b;
 	CMove _mv;
 	CBoard::CMemento mem;
+#ifdef _DEBUG
+	std::string fen;
+#endif
 public:
 	CBoardMutator(CBoard& b, const CMove mv)
 		: _b(b)
 		, _mv(mv)
 		, mem(mv)
 	{
+#ifdef _DEBUG
+		fen = b.fen();
+#endif
 		mem = b.make_move(mv);
 	};
 
 	~CBoardMutator()
 	{
 		_b.unmake_move(mem);
+#ifdef _DEBUG
+		ASSERT(fen == _b.fen());
+#endif
 	}
 };
 
-namespace
+int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspositionTableEntry>& tte)
 {
-	int MoveScore(const CMove& m)
+	// killer
+	if (tte)
 	{
-		int s=0;
-		if (m.is_double_push())
-			s+=1;
-		if (m.is_capture())
-			s+=3;
-		if (m.is_check())
-			s+=3;
-		if (m.is_promotion())
-			s+=3;
-		const int tofile = m.to() & 7;
-		const int torank = m.to() >> 3;
-		if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
-		{
-			s+=1;
-		}
-
-		return s;
+		if (tte->mv == m)
+			return 10000;
 	}
-};
+
+	if (_pv[ply] == m)
+		return 10000;
+
+	int s=0;
+	if (m.is_double_push())
+		s+=1;
+	if (m.is_capture())
+		s+=3;
+	if (m.is_check())
+		s+=3;
+	if (m.is_promotion())
+		s+=3;
+	const int tofile = m.to() & 7;
+	const int torank = m.to() >> 3;
+	if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
+	{
+		s+=1;
+	}
+
+	return s;
+}
+
 
 /*s*/ int CEngine::heuristic(CBoard& b)
 {
@@ -63,7 +83,6 @@ namespace
 	if (!lm.size())
 	{
 		// checkmated or draw
-		// todo
 		if (b.is_check())
 		{
 			// checkmated
@@ -93,10 +112,11 @@ namespace
 		mat_count += pc.second.size() * values[pc.first.piece()] * mult;
 		// 2 bishop bonus
 		if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
+		{
 			mat_count += 25 * mult;
-
+		}
 		// central pawn bonus
-		if (pc.first.piece() == chess::PAWN)
+		else if (pc.first.piece() == chess::PAWN)
 		{
 			for (const auto & pawn : pc.second)
 			{ 
@@ -105,6 +125,19 @@ namespace
 				if ((file07 == 3 || file07 == 4)
 					&& (rank07 == 3 || rank07 == 4))
 					mat_count += 10 * mult;
+			}
+		}
+		else if (pc.first.piece() == chess::KNIGHT)
+		{
+			for (const auto & knight : pc.second)
+			{ 
+				const int file07 = knight & 7;
+				const int rank07 = knight >> 4;
+				if ((file07 > 1 && file07 < 6)
+					&& (rank07 > 1 && rank07 < 6))
+					mat_count += 10 * mult;
+				if (file07 == 0 || rank07 == 0 || file07 == 7 || rank07 == 7)
+					mat_count -= 10 * mult;
 			}
 		}
 	}
@@ -132,10 +165,11 @@ namespace {
 		PerftResult& operator+= (const PerftResult & other)
 		{
 			nodes += other.nodes;
-			ep += other.ep;
+			/*ep += other.ep;
 			captures += other.captures;
 			promotions += other.promotions;
 			checks += other.checks;
+			*/
 			return *this;
 		};
 	};
@@ -203,14 +237,26 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 {
 	if (depth == 0)
 		return color * heuristic(_b);
+
+	auto tte = tt.get_entry(CZobrist(_b.hash()));
+
+	if (tte)
+	{
+		if (tte->depth >= depth)
+		{
+			return tte->score;
+		}
+	}
+
 	auto lm = _b.legal_moves();
 	if (lm.size() == 0)
 	{
 		return color * heuristic(_b);
 	}
+	const int ply = _b.ply();
 	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
 	{
-		return MoveScore(m1) > MoveScore(m2);
+		return move_score(m1, ply, tte) > move_score(m2, ply, tte);
 	});
 
 	for (const auto & mv : lm)
@@ -219,21 +265,54 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 			CBoardMutator mut(_b,mv);
 			const int val = -negamax(depth - 1, -beta, -alpha, -color);
 			if (val >= beta)
+			{
+				STranspositionTableEntry tte;
+				tte.depth = depth - 1;
+				tte.mv = mv;
+				tte.nt = NT_LB;
+				tte.score = beta;
+				tt.store_entry(CZobrist(_b.hash()), tte);
 				return val;
+			}
 			if (val > alpha)
 			{
+				STranspositionTableEntry tte;
+				tte.depth = depth - 1;
+				tte.mv = mv;
+				tte.nt = NT_UB;
+				tte.score = alpha;
+				tt.store_entry(CZobrist(_b.hash()), tte);
 				_pv[_b.ply() - 1] = mv;
 				alpha = val;
 			}
 		}
 	}
+	
 	return alpha;
 }
 
 CEngine::MoveResult CEngine::negamax_root()
 {
+#ifdef _DEBUG
+	const int depth = 4;
+#else
+	const int depth = 5;
+#endif
+
+	auto tte = tt.get_entry(CZobrist(_b.hash()));
+	if (tte)
+	{
+		if (tte->depth >= depth)
+		{
+			MoveResult mr;
+			mr.first = tte->score;
+			mr.second = tte->mv;
+			return mr;
+		}
+	}
 
 	auto lm = _b.legal_moves();
+
 	if (lm.size() == 0)
 	{
 		ASSERT(false);
@@ -241,25 +320,22 @@ CEngine::MoveResult CEngine::negamax_root()
 	int alpha = std::numeric_limits<int>::min();
 	int beta = std::numeric_limits<int>::max();
 	const int color = 1;
-#ifdef _DEBUG
-	const int depth = 4;
-#else
-	const int depth = 5;
-#endif
 
 
 	boost::optional<CMove> best;
 
+	const int ply = _b.ply();
+
 	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
 	{
-		return MoveScore(m1) > MoveScore(m2);
+		return move_score(m1, ply, tte) > move_score(m2, ply, tte);
 	});
 
 	{
 		std::stringstream ss;
 		ss << "Legal moves (" << lm.size() << "): ";
 		for (const auto & mv : lm)
-			ss << mv.long_algebraic();
+			ss << mv.long_algebraic() << " ";
 		_s.WriteLogLine(ss.str());
 	}
 
@@ -285,7 +361,7 @@ CEngine::MoveResult CEngine::negamax_root()
 	{
 		std::stringstream ss;
 		ss << "info pv ";
-		for (auto i = _pv.begin(); i != _pv.end(); ++i )
+		for (auto i = _pv.begin() + _b.ply(); i != _pv.end(); ++i )
 		{
 			if (i->to() == chess::SQUARE_LAST && i->from() == chess::SQUARE_LAST)
 				break;

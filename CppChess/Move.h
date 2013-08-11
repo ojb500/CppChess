@@ -110,6 +110,11 @@ public:
 		return _promotion;
 	};
 
+	bool CMove::operator==(const CMove& rhs)const
+	{
+		return (_to == rhs._to && _from == rhs._from && _flags == rhs._flags && _promotion == rhs._promotion);
+	}
+	
 private:
 	chess::SQUARES _from;
 	chess::SQUARES _to;

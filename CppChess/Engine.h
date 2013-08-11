@@ -1,13 +1,16 @@
 #include "Board.h"
 #include "UciSession.h"
+#include "TranspositionTable.h"
 
 class CEngine
 {
 public:
-	CEngine(CUciSession & s, CBoard b);
+	CEngine(CUciSession & s);
 	CMove Think();	
 	void Perft(int depth);
 	~CEngine(void);
+
+	void set_position(CBoard& b);
 
 	typedef std::pair<int, CMove> MoveResult;
 
@@ -16,6 +19,10 @@ public:
 private:
 	MoveResult negamax_root();
 	int negamax(int depth, int alpha, int beta, int color);
+
+	CTranspositionTable tt;
+
+	int move_score(const CMove& m, int ply, const boost::optional<STranspositionTableEntry> & tte);
 
 	void write_current_move(std::string, int);
 	void write_best_move(std::string, int);

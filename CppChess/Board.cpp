@@ -122,6 +122,8 @@ CBoard::CBoard()
 	, _castling(chess::CR_ALL)
 	, _halfmoves(0)
 	, _fullmove(1)
+	, _en_passant_square(XA1)
+	, _hash(0)
 {
 	add_piece(CPiece(chess::WHITE, chess::ROOK),		chess::A1);
 	add_piece(CPiece(chess::WHITE, chess::KNIGHT),		chess::B1);
@@ -165,14 +167,17 @@ void CBoard::add_piece(CPiece p, chess::SQUARES sq)
 	const INT_SQUARES i = int_index(sq);
 	_board[i] = p;
 	_pieces[p].insert(i);
+	_hash.ApplyPieceAtSquare(p, sq);
 };
 
 CBoard::CMemento CBoard::make_move(CMove mv) 
 {
 	CMemento mem(mv);
+	mem.hash.SwitchSideOnMove();
 	if (mv.is_capture())
 	{
 		mem.captured = piece_at_square(mv.to());
+		mem.hash.ApplyPieceAtSquare(mem.captured, mv.to());
 		_pieces[mem.captured].erase(int_index(mv.to()));
 	}
 
@@ -180,49 +185,147 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		_fullmove++;
 	_halfmoves++;
 
-	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
-
-
 	const INT_SQUARES to = int_index(mv.to());
 	const INT_SQUARES from = int_index(mv.from());
 
 	const CPiece moved = _board[from];
 
-
-
-	const int dist = from - to;
-
+	mem.cr = _castling;
 	mem.ep = _en_passant_square;
-
-	// Find out if this move allows an en passant
-	// i.e. is this a double pawn push
-	// Offset will be either -32 for white or 32 for black
-	if (mv.is_double_push() && (dist == -32 || dist == 32))
+	_en_passant_square = XA1;
+	
+	if (mv.is_en_passant_capture())
 	{
-		_en_passant_square = INT_SQUARES(from + dist / 2);
+		// 4 . p P . . . After 1. Pc2-c4 
+		// 3 . . . . . .
+		// 2 . . . . . .
+		// 1 . . . . . .
+		//   a b c d e f
+
+		// 4 . . . . . . black can play 1...b4xd3 
+		// 3 . . p . . .
+		// 2 . . . . . .
+		// 1 . . . . . .
+		//   a b c d e f
+
+		// We need to remove the pawn on the square behind (-16 for white, +16 for black)
+		// the 'to' square
+		const INT_SQUARES en_passant_taken_square = INT_SQUARES(int_index(mv.to()) - (_side == chess::WHITE ? -16 : +16));
+		const CPiece taken_piece = _board[en_passant_taken_square];
+		ASSERT(taken_piece.piece() == chess::PAWN);
+		_pieces[taken_piece].erase(en_passant_taken_square);
+
+		//TODO ZOB FILE
+
+		_board[en_passant_taken_square] = CPiece();
+
+		_pieces[moved].erase(from);
+		_pieces[moved].insert(to);
+
+		_board[to] = _board[from];
+		_board[from] = CPiece();
+	}
+	else if (mv.is_castle())
+	{
+		ASSERT(moved.piece() == chess::KING);
+		const INT_SQUARES king_from = from; // TODO 960
+		const INT_SQUARES king_to = to;
+
+		// find the rook - 960
+		INT_SQUARES rook_from, rook_to;
+		if (mv.is_oo())
+		{
+			if (_side == chess::WHITE)
+			{
+				rook_from = H1;
+				rook_to = F1;
+			}
+			else
+			{
+				rook_from = H8;
+				rook_to = F8;
+			}
+		}
+		else
+		{
+			if (_side == chess::WHITE)
+			{
+				rook_from = A1;
+				rook_to = D1;
+			}
+			else
+			{
+				rook_from = A8;
+				rook_to = D1;
+			}
+		}
+
+		const CPiece rook = _board[rook_from];
+		ASSERT(rook.piece() == chess::ROOK);
+
+		_pieces[rook].erase(rook_from);
+		mem.hash.ApplyPieceAtSquare(rook, index(rook_from));
+		_pieces[rook].insert(rook_to);
+		mem.hash.ApplyPieceAtSquare(rook, index(rook_to));
+
+		_board[rook_to] = _board[rook_from];
+		_board[rook_from] = CPiece();
+
+		_pieces[moved].erase(king_from);
+		mem.hash.ApplyPieceAtSquare(moved, index(king_from));
+		_pieces[moved].insert(king_to);
+		mem.hash.ApplyPieceAtSquare(moved, index(king_to));
+
+		_board[king_to] = _board[king_from];
+		_board[king_from] = CPiece();
+
+
+
 	}
 	else
 	{
-		_en_passant_square.reset();
+		const int dist = to - from;
+
+		// Find out if this move allows an en passant
+		// i.e. is this a double pawn push
+		// Offset will be either -32 for white or 32 for black
+		if (mv.is_double_push())
+		{
+			const INT_SQUARES sq = INT_SQUARES(from + dist / 2);
+			_en_passant_square = sq;
+			// TODO mem.hash.ApplyEnPassantFile(sq & 7);
+		}
+	
+		{
+			// Move the bits
+			_pieces[moved].erase(from);
+			mem.hash.ApplyPieceAtSquare(moved, index(from));
+			_pieces[moved].insert(to);
+			mem.hash.ApplyPieceAtSquare(moved, index(from));
+
+			_board[to] = _board[from];
+			_board[from] = CPiece();
+		}
 	}
 
-	_pieces[moved].erase(from);
-	_pieces[moved].insert(to);
+	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
 
-	_board[to] = _board[from];
-	_board[from] = CPiece();
-
+	_hash.Apply(mem.hash);
 	return mem;
 };
 
 void CBoard::unmake_move(CMemento m) 
 {
+	_hash.Apply(m.hash);
+
 	if (_side == chess::WHITE)
 		_fullmove--;
 	_halfmoves--;
 
-	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
+	const chess::SIDE other_side = _side;
 
+	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
+	
 	const INT_SQUARES from = int_index(m.move.from());
 	const INT_SQUARES to = int_index(m.move.to());
 	const CPiece moved = _board[to];
@@ -240,11 +343,75 @@ void CBoard::unmake_move(CMemento m)
 
 	_pieces[moved].erase(to);
 	_pieces[moved].insert(from);
+
+	if (m.move.is_en_passant_capture())
+	{
+		// 4 . p P . . . After 1. Pc2-c4 
+		// 3 . . . . . .
+		// 2 . . . . . .
+		// 1 . . . . . .
+		//   a b c d e f
+
+		// 4 . . . . . . black can play 1...b4xd3 
+		// 3 . . p . . .
+		// 2 . . . . . .
+		// 1 . . . . . .
+		//   a b c d e f
+
+		// We need to replace the pawn on the square behind (-16 for white, +16 for black)
+		// the 'to' square
+		const INT_SQUARES en_passant_taken_square = INT_SQUARES(to - (_side == chess::WHITE ? -16 : +16));
+		const CPiece taken_piece = CPiece(other_side, chess::PAWN);
+		
+		_pieces[taken_piece].erase(en_passant_taken_square);
+		_board[en_passant_taken_square] = taken_piece;
+	}
+	else if (m.move.is_castle())
+	{
+		ASSERT(moved.piece() == chess::KING);
+		// find the rook - 960
+		INT_SQUARES rook_from, rook_to;
+		if (m.move.is_oo())
+		{
+			if (_side == chess::WHITE)
+			{
+				rook_from = H1;
+				rook_to = F1;
+			}
+			else
+			{
+				rook_from = H8;
+				rook_to = F8;
+			}
+		}
+		else
+		{
+			if (_side == chess::WHITE)
+			{
+				rook_from = A1;
+				rook_to = D1;
+			}
+			else
+			{
+				rook_from = A8;
+				rook_to = D1;
+			}
+		}
+
+		const CPiece rook = _board[rook_to];
+		ASSERT(rook.piece() == chess::ROOK);
+
+		_pieces[rook].insert(rook_from);
+		_pieces[rook].erase(rook_to);
+
+
+		_board[rook_from] = _board[rook_to];
+		_board[rook_to] = CPiece();
+	}
 };
 
 bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square) const
 {
-	// TODO pawn attacks
 	const auto & diags = _lookups[CPiece(attacker, chess::BISHOP)][square]; // or Q or K
 	const auto & horizs = _lookups[CPiece(attacker, chess::ROOK)][square];  // or Q or K
 	const auto & knights = _lookups[CPiece(attacker, chess::KNIGHT)][square];
@@ -328,9 +495,7 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 			}
 		}
 	}
-	// TODO pawn attacks
 	return false;
-
 };
 
 int CBoard::ply() const
@@ -388,16 +553,21 @@ void CBoard::try_add_castling_move(std::vector<CMove> & v, CMove mv)
 	{
 		// check d1/d8
 		const INT_SQUARES dn = int_index(chess::SQUARES(mv.to() + 1));
-		if (!is_occupied(dn) && !is_square_attacked(other_side, dn))
-			v.push_back(mv);
+		if (is_occupied(dn) || is_square_attacked(other_side, dn))
+			return;
 	}
 	else
 	{
 		// check f1/f8
 		const INT_SQUARES fn = int_index(chess::SQUARES(mv.to() - 1));
-		if (!is_occupied(fn) && !is_square_attacked(other_side, fn))
-			v.push_back(mv);
+		if (is_occupied(fn) || is_square_attacked(other_side, fn))
+			return;
 	}
+	const auto to = int_index(mv.to());
+	if (is_occupied(to) || is_square_attacked(other_side, to))
+		return;
+
+	v.push_back(mv);
 }
 
 std::vector<CMove> CBoard::legal_moves() 
@@ -415,21 +585,25 @@ std::vector<CMove> CBoard::legal_moves()
 		{
 			// castling
 			const INT_SQUARES k = *piece.second.begin();
-			// TODO 960
-			const chess::CASTLING_RIGHTS my_castling = 
-				chess::CASTLING_RIGHTS(_castling &
-				(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
-
-			if (my_castling)
+			const INT_SQUARES home_square = (_side == chess::WHITE ? E1 : E8);
+			if (k == home_square)
 			{
-				if (my_castling & chess::CR_WQ)
-					try_add_castling_move(v, CMove(chess::E1, chess::C1, MOVE_OOO));
-				if (my_castling & chess::CR_BQ)
-					try_add_castling_move(v, CMove(chess::E8, chess::C8, MOVE_OOO));
-				if (my_castling & chess::CR_WK)
-					try_add_castling_move(v, CMove(chess::E1, chess::G1, MOVE_OO));
-				if (my_castling & chess::CR_BK)
-					try_add_castling_move(v, CMove(chess::E8, chess::G8, MOVE_OO));
+				// TODO 960
+				const chess::CASTLING_RIGHTS my_castling = 
+					chess::CASTLING_RIGHTS(_castling &
+					(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
+
+				if (my_castling)
+				{
+					if (my_castling & chess::CR_WQ)
+						try_add_castling_move(v, CMove(chess::E1, chess::C1, MOVE_OOO));
+					if (my_castling & chess::CR_BQ)
+						try_add_castling_move(v, CMove(chess::E8, chess::C8, MOVE_OOO));
+					if (my_castling & chess::CR_WK)
+						try_add_castling_move(v, CMove(chess::E1, chess::G1, MOVE_OO));
+					if (my_castling & chess::CR_BK)
+						try_add_castling_move(v, CMove(chess::E8, chess::G8, MOVE_OO));
+				}
 			}
 		}
 
@@ -524,10 +698,10 @@ std::vector<CMove> CBoard::legal_moves()
 										try_add_move(v, CMove(index(from), index(new_to), MOVE_CAPTURE));
 									}
 								}
-								else
+
+								if (_en_passant_square != XA1)
 								{
-									// maybe EP
-									if (_en_passant_square && new_to == *_en_passant_square)
+									if (new_to == _en_passant_square)
 									{
 										try_add_move(v, CMove(index(from), index(new_to), MOVE_FLAGS(MOVE_EN_PASSANT | MOVE_CAPTURE)));
 									}
@@ -536,18 +710,12 @@ std::vector<CMove> CBoard::legal_moves()
 						}
 					}
 
-
-					// TODO promotions
-					// TODO en passant
-
 				} // end piece loop
 
 			} // end pawn case
 			break;
 		}
 	}
-
-	// TODO move ordering
 
 	return v;
 };
@@ -637,10 +805,14 @@ void CBoard::set_fen_position(std::string fen)
 	// side on move
 
 	if (*tok == "b")
+	{
 		set_side_on_move(chess::BLACK);
+		_hash.SwitchSideOnMove();
+	}
 	else
+	{
 		set_side_on_move(chess::WHITE);
-
+	}
 	tok++;
 	if (tok.at_end())
 		return;
@@ -667,7 +839,11 @@ void CBoard::set_fen_position(std::string fen)
 	// ep
 	if (*tok != "-")
 	{
-
+		_en_passant_square = int_index(chess::square_from_string(*tok));
+	}
+	else
+	{
+		_en_passant_square = XA1;
 	}
 	tok++;
 	if (tok.at_end())
@@ -741,9 +917,9 @@ std::string CBoard::fen() const
 
 	// ep square
 	ss << " ";
-	if (_en_passant_square)
+	if (_en_passant_square != XA1)
 	{
-		ss << name_of_square(index(*_en_passant_square));
+		ss << name_of_square(index(_en_passant_square));
 	}
 	else
 	{
@@ -783,7 +959,7 @@ std::string CBoard::board() const
 	return ss.str();
 };
 
-long CBoard::hash() const 
+uint64_t CBoard::hash() const 
 {
-	return 0;
+	return _hash.Hash();
 };

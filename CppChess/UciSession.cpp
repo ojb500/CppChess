@@ -49,6 +49,7 @@ void CUciSession::listen()
 {
 	string s;
 	CBoard b;
+	std::shared_ptr<CEngine> e = make_shared<CEngine>(*this);
 
 	while (getline(_i, s, '\n'))
 	{
@@ -74,8 +75,13 @@ void CUciSession::listen()
 		{
 			WriteLine("readyok");
 		}
+		else if (*j == "board")
+		{
+			WriteLine("Current board:\r\n" + b.board());
+		}
 		else if (*j == "ucinewgame")
 		{
+			e = make_shared<CEngine>(*this);
 			b = CBoard();
 			WriteLine("readyok");
 		}
@@ -106,13 +112,11 @@ void CUciSession::listen()
 					else
 						ASSERT(false);
 				}
-				continue;
 			}
-
+			e->set_position(b);
 		}
 		else if (*j == "perft")
 		{
-			CEngine e(*this, b);
 			++j;
 			int maxdepth = 4;
 			if (!j.at_end())
@@ -120,7 +124,7 @@ void CUciSession::listen()
 				maxdepth = atoi(j->c_str());
 				++j;
 			}
-			e.Perft(maxdepth);
+			e->Perft(maxdepth);
 		}
 		else if (*j == "tests")
 		{
@@ -128,17 +132,11 @@ void CUciSession::listen()
 		}
 		else if (*j == "go")
 		{
-			CEngine e(*this, b);
-			auto m = e.Think();
+			auto m = e->Think();
 
 			WriteLine("bestmove " + m.long_algebraic());
 			// TODO do stuff with engine
 		}
-		else
-		{
-			ASSERT(false);
-		}
-
 	}
 }
 void CUciSession::WriteLine(std::string s)
