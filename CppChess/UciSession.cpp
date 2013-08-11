@@ -2,8 +2,10 @@
 #include "UciSession.h"
 #include "Board.h"
 #include "Engine.h"
+#include "Perft.h"
 #include <time.h>
 #include "Tests.h"
+
 
 using namespace std;
 
@@ -91,26 +93,32 @@ void CUciSession::listen()
 			b = CBoard();
 
 			if (*j != "startpos")
-				b.set_fen_position(*j);
-
-			j++;
-			if (j != tok.end())
 			{
-				j++; // moves
-				while (j != tok.end())
+				std::string fen = boost::algorithm::join(std::vector<std::string>(j, tok.end()), " ");
+				b.set_fen_position(fen);
+			}
+			else
+			{
+				j++;
+				if (j != tok.end())
 				{
-					CMove mv = CMove::FromString(*j++);
-					auto lm = b.legal_moves();
-					auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
+					j++; // moves
+					ASSERT(*j == "moves");
+					while (j != tok.end())
 					{
-						return m.from() == mv.from() && m.to() == mv.to();
-					});
-					if (m != lm.cend())
-					{
-						b.make_move(*m);
+						CMove mv = CMove::FromString(*j++);
+						auto lm = b.legal_moves();
+						auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
+						{
+							return m.from() == mv.from() && m.to() == mv.to();
+						});
+						if (m != lm.cend())
+						{
+							b.make_move(*m);
+						}
+						else
+							ASSERT(false);
 					}
-					else
-						ASSERT(false);
 				}
 			}
 			e->set_position(b);
@@ -125,6 +133,18 @@ void CUciSession::listen()
 				++j;
 			}
 			e->Perft(maxdepth);
+		}
+		else if (*j == "divide")
+		{
+			++j;
+			int maxdepth = 5;
+			if (!j.at_end())
+			{
+				maxdepth = atoi(j->c_str());
+				++j;
+			}
+			CPerft perft(b);
+			perft.Divide(maxdepth);
 		}
 		else if (*j == "tests")
 		{

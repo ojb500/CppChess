@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Board.h"
+#include "BoardMutator.h"
 
 namespace
 {
@@ -48,7 +49,7 @@ void CBoard::AddOffsetAttacks(CBoard::INT_SQUARES start, int offset, int max, st
 CBoard::LookupTables CBoard::createLookupTables()
 {
 	CBoard::LookupTables lt;
-	for (int s = chess::SIDE_FIRST; s <= chess::SIDE_LAST; s += 16)
+	for (int s = chess::SIDE_FIRST; s <= chess::SIDE_LAST; s += 1)
 	{
 		for (int p = chess::PIECE_FIRST; p <= chess::PIECE_LAST; ++p)
 		{
@@ -174,12 +175,6 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 {
 	CMemento mem(mv);
 	mem.hash.SwitchSideOnMove();
-	if (mv.is_capture())
-	{
-		mem.captured = piece_at_square(mv.to());
-		mem.hash.ApplyPieceAtSquare(mem.captured, mv.to());
-		_pieces[mem.captured].erase(int_index(mv.to()));
-	}
 
 	if (_side == chess::BLACK)
 		_fullmove++;
@@ -193,8 +188,58 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 	mem.cr = _castling;
 	mem.ep = _en_passant_square;
 	_en_passant_square = XA1;
-	
-	if (mv.is_en_passant_capture())
+	if (mv.is_normal_move())
+	{
+		if (mv.is_capture())
+		{
+			mem.captured = piece_at_square(mv.to());
+			mem.hash.ApplyPieceAtSquare(mem.captured, mv.to());
+			_pieces[mem.captured].erase(int_index(mv.to()));
+		}
+
+		const int dist = to - from;
+
+		// Find out if this move allows an en passant
+		// i.e. is this a double pawn push
+		// Offset will be either -32 for white or 32 for black
+		if (mv.is_double_push())
+		{
+			const INT_SQUARES sq = INT_SQUARES(from + dist / 2);
+			_en_passant_square = sq;
+			// TODO mem.hash.ApplyEnPassantFile(sq & 7);
+		}
+
+		{
+			// Move the bits
+			_pieces[moved].erase(from);
+			mem.hash.ApplyPieceAtSquare(moved, index(from));
+			_pieces[moved].insert(to);
+			mem.hash.ApplyPieceAtSquare(moved, index(to));
+
+			_board[to] = _board[from];
+			_board[from] = CPiece();
+		}
+	}
+	else if (mv.is_promotion())
+	{
+		if (mv.is_capture())
+		{
+			mem.captured = piece_at_square(mv.to());
+			mem.hash.ApplyPieceAtSquare(mem.captured, mv.to());
+			_pieces[mem.captured].erase(int_index(mv.to()));
+		}
+
+		const CPiece promoted(_side, mv.promotion_piece());
+		const CPiece pawn(_side, chess::PAWN);
+		_pieces[promoted].insert(to);
+		mem.hash.ApplyPieceAtSquare(promoted, index(to));
+		_pieces[pawn].erase(from);
+		mem.hash.ApplyPieceAtSquare(pawn, index(from));
+		
+		_board[to] = promoted;
+		_board[from] = CPiece();
+	}
+	else if (mv.is_en_passant_capture())
 	{
 		// 4 . p P . . . After 1. Pc2-c4 
 		// 3 . . . . . .
@@ -260,12 +305,13 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 			else
 			{
 				rook_from = A8;
-				rook_to = D1;
+				rook_to = D8;
 			}
 		}
 
 		const CPiece rook = _board[rook_from];
 		ASSERT(rook.piece() == chess::ROOK);
+		ASSERT(rook.side() == _side);
 
 		_pieces[rook].erase(rook_from);
 		mem.hash.ApplyPieceAtSquare(rook, index(rook_from));
@@ -282,34 +328,6 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 		_board[king_to] = _board[king_from];
 		_board[king_from] = CPiece();
-
-
-
-	}
-	else
-	{
-		const int dist = to - from;
-
-		// Find out if this move allows an en passant
-		// i.e. is this a double pawn push
-		// Offset will be either -32 for white or 32 for black
-		if (mv.is_double_push())
-		{
-			const INT_SQUARES sq = INT_SQUARES(from + dist / 2);
-			_en_passant_square = sq;
-			// TODO mem.hash.ApplyEnPassantFile(sq & 7);
-		}
-	
-		{
-			// Move the bits
-			_pieces[moved].erase(from);
-			mem.hash.ApplyPieceAtSquare(moved, index(from));
-			_pieces[moved].insert(to);
-			mem.hash.ApplyPieceAtSquare(moved, index(to));
-
-			_board[to] = _board[from];
-			_board[from] = CPiece();
-		}
 	}
 
 	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
@@ -329,26 +347,41 @@ void CBoard::unmake_move(CMemento m)
 	const chess::SIDE other_side = _side;
 
 	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
-	
+
 	const INT_SQUARES from = int_index(m.move.from());
 	const INT_SQUARES to = int_index(m.move.to());
 	const CPiece moved = _board[to];
-
-	_board[from] = moved;
-	_board[to] = m.captured;
-
-	if (m.captured.piece() != chess::NOTHING)
-	{
-		_pieces[m.captured].insert(to);
-	}
-
 	_en_passant_square = m.ep;
 	_castling = m.cr;
 
-	_pieces[moved].erase(to);
-	_pieces[moved].insert(from);
+	if (m.move.is_normal_move())
+	{
+		_board[from] = moved;
+		_board[to] = m.captured;
 
-	if (m.move.is_en_passant_capture())
+		if (m.captured.piece() != chess::NOTHING)
+		{
+			_pieces[m.captured].insert(to);
+		}
+
+		_pieces[moved].erase(to);
+		_pieces[moved].insert(from);
+	}
+	else if (m.move.is_promotion())
+	{
+		_board[to] = m.captured;
+		if (m.captured.piece() != chess::NOTHING)
+		{
+			_pieces[m.captured].insert(to);
+		}
+
+		const CPiece promoted(_side, m.move.promotion_piece());
+		const CPiece pawn(_side, chess::PAWN);
+		_pieces[promoted].erase(to);
+		_pieces[pawn].insert(from);
+		_board[from] = pawn;
+	}
+	else if (m.move.is_en_passant_capture())
 	{
 		// 4 . p P . . . After 1. Pc2-c4 
 		// 3 . . . . . .
@@ -356,7 +389,7 @@ void CBoard::unmake_move(CMemento m)
 		// 1 . . . . . .
 		//   a b c d e f
 
-		// 4 . . . . . . black can play 1...b4xd3 
+		// 4 . . . . . . black can play 1...b4xc3 
 		// 3 . . p . . .
 		// 2 . . . . . .
 		// 1 . . . . . .
@@ -366,8 +399,8 @@ void CBoard::unmake_move(CMemento m)
 		// the 'to' square
 		const INT_SQUARES en_passant_taken_square = INT_SQUARES(to - (_side == chess::WHITE ? -16 : +16));
 		const CPiece taken_piece = CPiece(other_side, chess::PAWN);
-		
-		_pieces[taken_piece].erase(en_passant_taken_square);
+
+		_pieces[taken_piece].insert(en_passant_taken_square);
 		_board[en_passant_taken_square] = taken_piece;
 	}
 	else if (m.move.is_castle())
@@ -398,12 +431,13 @@ void CBoard::unmake_move(CMemento m)
 			else
 			{
 				rook_from = A8;
-				rook_to = D1;
+				rook_to = D8;
 			}
 		}
 
 		const CPiece rook = _board[rook_to];
 		ASSERT(rook.piece() == chess::ROOK);
+		ASSERT(rook.side() == _side);
 
 		_pieces[rook].insert(rook_from);
 		_pieces[rook].erase(rook_to);
@@ -412,8 +446,37 @@ void CBoard::unmake_move(CMemento m)
 		_board[rook_from] = _board[rook_to];
 		_board[rook_to] = CPiece();
 	}
+
+
 };
 
+CZobrist CBoard::hash_from_scratch() const
+{
+	CZobrist zob(0);
+	if (_side == chess::BLACK)
+		zob.SwitchSideOnMove();
+
+	if (! off_board(_en_passant_square))
+	{
+		const int file07 = _en_passant_square & 7;
+		zob.ApplyEnPassantFile(file07);
+	}
+
+	for (int i=0; i<8; ++i)
+	{
+		for (int j=0;j<8;++i)
+		{
+			const INT_SQUARES sq = static_cast<INT_SQUARES>(i*16 + j);
+			const CPiece p = _board[sq];
+			if (p)
+			{
+				zob.ApplyPieceAtSquare(p, index(sq));
+			}
+		}
+	}
+
+	return zob;
+}
 bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square) const
 {
 	const auto & diags = _lookups[CPiece(attacker, chess::BISHOP)][square]; // or Q or K
@@ -436,20 +499,16 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 		{
 			ray_distance++;
 			const auto piece = _board[sq];
-			switch(piece.side())
-			{
-			case chess::NONE:
+			if (!piece)
 				continue;
-			default:
-				{
-					if (piece.side() == attacker && 
-						((piece.piece() == chess::BISHOP || piece.piece() == chess::QUEEN)
-						|| (piece.piece() == chess::KING && ray_distance == 1)))
-					{
-						return true;
-					}
-				}
+
+			if (piece.side() == attacker && 
+				((piece.piece() == chess::BISHOP || piece.piece() == chess::QUEEN)
+				|| (piece.piece() == chess::KING && ray_distance == 1)))
+			{
+				return true;
 			}
+
 			break;
 		}
 	}
@@ -461,19 +520,14 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 		{
 			ray_distance++;
 			const auto piece = _board[sq];
-			switch(piece.side())
-			{
-			case chess::NONE:
+			if (! piece)
 				continue;
-			default:
-				{
-					if (piece.side() == attacker && 
-						((piece.piece() == chess::ROOK || piece.piece() == chess::QUEEN)
-						|| (piece.piece() == chess::KING && ray_distance == 1)))
-					{
-						return true;
-					}
-				}
+			if (piece.side() == attacker && 
+				((piece.piece() == chess::ROOK || piece.piece() == chess::QUEEN)
+				|| (piece.piece() == chess::KING && ray_distance == 1)))
+			{
+				return true;
+
 			}
 			break;
 		}
@@ -484,18 +538,12 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 		for (const auto sq : ray)
 		{
 			const auto piece = _board[sq];
-			switch(piece.side())
-			{
-			case chess::NONE:
+			if (!piece)
 				continue;
-			default:
-				{
-					if (piece.side() == attacker && 
-						piece.piece() == chess::KNIGHT)
-					{
-						return true;
-					}
-				}
+			if (piece.side() == attacker && 
+				piece.piece() == chess::KNIGHT)
+			{
+				return true;
 			}
 		}
 	}
@@ -510,7 +558,7 @@ bool CBoard::is_check() const
 {
 	const CPiece moving_king(side_on_move(), chess::KING);
 	const chess::SIDE non_moving_side = side_on_move() == chess::WHITE ? chess::BLACK : chess::WHITE;
-	const auto sq = * _pieces.at(moving_king).begin();
+	const auto sq = _pieces.at(moving_king).only();
 	return is_square_attacked(non_moving_side, sq);
 };
 
@@ -529,14 +577,13 @@ bool CBoard::is_checkmate()
 	return is_check() && ! legal_moves().size(); 
 };
 
-void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
+void CBoard::try_add_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 {
-	CBoard b(*this);
 	const auto moving_side = _side;
 	const auto non_moving_side = _side == chess::WHITE ? chess::BLACK : chess::WHITE;
-	auto mem = b.make_move(mv);
+	CBoardMutator mut(b, mv);
 	const CPiece moving_king(moving_side, chess::KING);
-	const auto sq = * b._pieces[moving_king].begin();
+	const auto sq = b._pieces[moving_king].only();
 	if (b.is_square_attacked(non_moving_side, sq))
 	{
 		//nowt
@@ -551,7 +598,7 @@ void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
 	}
 }
 
-void CBoard::try_add_castling_move(std::vector<CMove> & v, CMove mv)
+void CBoard::try_add_castling_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 {
 	// verify the intervening squares are clear
 	// TODO 960
@@ -575,7 +622,7 @@ void CBoard::try_add_castling_move(std::vector<CMove> & v, CMove mv)
 	if (is_occupied(to) || is_square_attacked(other_side, to))
 		return;
 
-	v.push_back(mv);
+	try_add_move(b, v, mv);
 }
 
 std::vector<CMove> CBoard::legal_moves() 
@@ -584,15 +631,17 @@ std::vector<CMove> CBoard::legal_moves()
 	v.reserve(40);
 	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
 
-	for (const auto & piece : _pieces)
+	CBoard b2(*this);
+	for (int px = chess::PIECE_FIRST; px <= chess::PIECE_LAST; ++ px)
 	{
-		if (piece.first.side() != _side)
-			continue;
+		const CPiece thePiece(_side, static_cast<chess::PIECE>(px));
+		const CPieceList& theList = _pieces[thePiece];
 
-		if (piece.first.piece() == chess::KING)
+		if (theList.empty()) continue;
+		if (thePiece.piece() == chess::KING)
 		{
 			// castling
-			const INT_SQUARES k = *piece.second.begin();
+			const INT_SQUARES k = *theList.begin();
 			const INT_SQUARES home_square = (_side == chess::WHITE ? E1 : E8);
 			if (k == home_square)
 			{
@@ -604,18 +653,18 @@ std::vector<CMove> CBoard::legal_moves()
 				if (my_castling)
 				{
 					if (my_castling & chess::CR_WQ)
-						try_add_castling_move(v, CMove(chess::E1, chess::C1, MOVE_OOO));
+						try_add_castling_move(b2, v, CMove(chess::E1, chess::C1, MOVE_OOO));
 					if (my_castling & chess::CR_BQ)
-						try_add_castling_move(v, CMove(chess::E8, chess::C8, MOVE_OOO));
+						try_add_castling_move(b2, v, CMove(chess::E8, chess::C8, MOVE_OOO));
 					if (my_castling & chess::CR_WK)
-						try_add_castling_move(v, CMove(chess::E1, chess::G1, MOVE_OO));
+						try_add_castling_move(b2, v, CMove(chess::E1, chess::G1, MOVE_OO));
 					if (my_castling & chess::CR_BK)
-						try_add_castling_move(v, CMove(chess::E8, chess::G8, MOVE_OO));
+						try_add_castling_move(b2, v, CMove(chess::E8, chess::G8, MOVE_OO));
 				}
 			}
 		}
 
-		switch (piece.first.piece())
+		switch (thePiece.piece())
 		{
 		case chess::ROOK:
 		case chess::KNIGHT:
@@ -623,24 +672,24 @@ std::vector<CMove> CBoard::legal_moves()
 		case chess::QUEEN:
 		case chess::KING:
 			{
-				for (const auto & from : piece.second)
+				for (const auto & from : theList)
 				{
-					for (const auto & ray : _lookups[piece.first][from])
+					for (const auto & ray : _lookups[thePiece][from])
 					{
 						for (auto to : ray)
 						{
 							const CPiece atSquare = _board[to];
 
-							if (atSquare.side() != chess::NONE)
+							if (atSquare > 0)
 							{
 								// poss capture
 								if (atSquare.side() == other_side)
 								{
-									try_add_move(v, CMove(index(from), index(to), MOVE_CAPTURE));
+									try_add_move(b2, v, CMove(index(from), index(to), MOVE_CAPTURE));
 								}
 								break;
 							}
-							try_add_move(v, CMove(index(from), index(to), MOVE_NONE));
+							try_add_move(b2, v, CMove(index(from), index(to), MOVE_NONE));
 						}
 					}
 				}
@@ -655,7 +704,7 @@ std::vector<CMove> CBoard::legal_moves()
 				// Destination rank depends on side
 				const int destRank = (_side == chess::WHITE ? 0 : 7);
 
-				for (const auto & from : piece.second)
+				for_each(theList.begin(), theList.end(), [&](const INT_SQUARES from)
 				{
 
 					{
@@ -667,11 +716,11 @@ std::vector<CMove> CBoard::legal_moves()
 							{
 								const chess::PIECE promotablePieces[] = {chess::QUEEN, chess::KNIGHT, chess::ROOK, chess::BISHOP};
 								for (chess::PIECE p : promotablePieces)
-									try_add_move(v, CMove(index(from), index(new_to), MOVE_PROMOTION, p));
+									try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_PROMOTION, p));
 							}
 							else
 							{
-								try_add_move(v, CMove(index(from), index(new_to), MOVE_NONE));
+								try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_NONE));
 
 								// If on home rank we can move 2 squares as well, provided not blocked
 								if ((from >> 4) == homeRank)
@@ -679,7 +728,7 @@ std::vector<CMove> CBoard::legal_moves()
 									const INT_SQUARES new_to = INT_SQUARES(from + 2*direction);
 									if (!is_occupied(new_to))
 									{
-										try_add_move(v, CMove(index(from), index(new_to), MOVE_DBL_PUSH));
+										try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_DBL_PUSH));
 									}
 								}
 							}
@@ -693,17 +742,17 @@ std::vector<CMove> CBoard::legal_moves()
 							const CPiece atSquare = _board[new_to];
 							if (! off_board(new_to))
 							{
-								if (atSquare.side() != chess::NONE && atSquare.side() != _side)
+								if (atSquare && atSquare.side() != _side)
 								{
 									if ((new_to >> 4) == destRank)
 									{
 										const chess::PIECE promotablePieces[] = {chess::QUEEN, chess::KNIGHT, chess::ROOK, chess::BISHOP};
 										for (chess::PIECE p : promotablePieces)
-											try_add_move(v, CMove(index(from), index(new_to), MOVE_CAPTURE | MOVE_PROMOTION, p));
+											try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_CAPTURE | MOVE_PROMOTION, p));
 									}
 									else
 									{
-										try_add_move(v, CMove(index(from), index(new_to), MOVE_CAPTURE));
+										try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_CAPTURE));
 									}
 								}
 
@@ -711,14 +760,14 @@ std::vector<CMove> CBoard::legal_moves()
 								{
 									if (new_to == _en_passant_square)
 									{
-										try_add_move(v, CMove(index(from), index(new_to), MOVE_FLAGS(MOVE_EN_PASSANT | MOVE_CAPTURE)));
+										try_add_move(b2, v, CMove(index(from), index(new_to), MOVE_FLAGS(MOVE_EN_PASSANT | MOVE_CAPTURE)));
 									}
 								}
 							}
 						}
 					}
 
-				} // end piece loop
+				}); // end piece loop
 
 			} // end pawn case
 			break;
@@ -870,6 +919,13 @@ void CBoard::set_fen_position(std::string fen)
 
 	ASSERT(fen == this->fen());
 }
+bool CBoard::assert_piecelist_consistent() const
+{
+	CBoard b2;
+	b2.set_fen_position(fen());
+	return b2._pieces.equals(_pieces);
+};
+
 std::string CBoard::fen() const 
 {
 	std::stringstream ss;

@@ -119,6 +119,10 @@ public:
 	{
 		return (_flags & MOVE_CAPTURE) != 0;
 	};
+	bool is_normal_move()const
+	{
+		return (_flags & (MOVE_EN_PASSANT | MOVE_PROMOTION | MOVE_OO | MOVE_OOO)) == 0;
+	}
 	bool is_promotion()const
 	{
 		return (_flags & MOVE_PROMOTION) != 0;

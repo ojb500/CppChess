@@ -27,8 +27,11 @@
 #include <sstream>
 #include <functional>
 #include <chrono>
+#include <thread>
 
 #include <boost\tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/range.hpp>
 
 #ifdef _DEBUG
 #define ASSERT(x) assert((x))

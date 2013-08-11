@@ -44,8 +44,7 @@ public:
 		INT_SQUARE_FIRST = A8, INT_SQUARE_LAST = XH1
 	};
 
-	typedef std::map<CPiece, std::set<INT_SQUARES>, less_piece> PieceTable;
-
+	
 	struct CMemento
 	{
 	public:
@@ -58,6 +57,66 @@ public:
 		CMove move;
 	};
 
+	class CPieceList : public std::set<INT_SQUARES>
+	{
+	public:
+		const INT_SQUARES only()const
+		{
+			ASSERT(size() == 1);
+			return *cbegin();
+		};
+	};
+
+	class CPieceTable 
+	{
+
+	private:
+		typedef std::vector<CPieceList> Array;
+		Array _list;
+
+	public:
+		CPieceTable()
+			: _list(12)
+		{
+
+		}
+		const CPieceList& at(const CPiece p)const
+		{
+			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			return _list[i];
+		}
+		CPieceList& operator[](const CPiece p)
+		{
+			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			return _list[i];
+		}
+		const CPieceList& operator[](const CPiece p)const
+		{
+			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			return _list[i];
+		}
+		void clear()
+		{
+			for (auto&a : _list)
+			{
+				a.clear();
+			}
+		}
+		bool equals(const CPieceTable& other)const
+		{
+			for (int side=0; side<2; ++side)
+			for (int i=1;i<7;++i)
+			{
+				const CPiece pc(static_cast<chess::SIDE>(side), static_cast<chess::PIECE>(i));
+				if (at(pc) != other[pc])
+					return false;
+			}
+			return true;
+		}
+	};
+
+	typedef CPieceTable PieceTable;
+
 	virtual void add_piece(CPiece p, chess::SQUARES sq) override;
 	CMemento make_move(CMove mv);
 	void unmake_move(CMemento m);
@@ -69,12 +128,15 @@ public:
 	virtual std::vector<CMove> legal_moves() override;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const override;
 	virtual std::string san_name(CMove m) const override;
-	
+
 	int ply() const;
 
 	std::string board() const;
 
 	virtual std::string fen() const override;
+	
+	bool assert_piecelist_consistent() const;
+
 	void set_fen_position(std::string);
 
 	virtual uint64_t hash() const override;
@@ -92,8 +154,10 @@ private:
 
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 
-	void try_add_move(std::vector<CMove> & v, CMove mv);
-	void try_add_castling_move(std::vector<CMove> & v, CMove mv);
+	CZobrist hash_from_scratch() const;
+
+	void try_add_move(CBoard& b, std::vector<CMove> & v, CMove mv);
+	void try_add_castling_move(CBoard& b, std::vector<CMove> & v, CMove mv);
 
 	void clear_board();
 
@@ -111,6 +175,7 @@ private:
 	int _fullmove;
 
 	friend class CTests;
+	friend class CBoardMutator;
 
 	CZobrist _hash;
 };

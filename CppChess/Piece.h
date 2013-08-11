@@ -4,9 +4,8 @@ namespace chess
 {
 	enum SIDE
 	{
-		NONE = 0,
-		WHITE = 16,
-		BLACK = 32,
+		WHITE = 0,
+		BLACK = 1,
 		SIDE_FIRST = WHITE,
 		SIDE_LAST = BLACK,
 	};
@@ -24,13 +23,17 @@ namespace chess
 		PIECE_LAST = KING,
 	};
 }
+inline chess::PIECE operator++(chess::PIECE p)
+{return static_cast<chess::PIECE>(static_cast<int>(p) + 1);}
 
 class CPiece
 {
 public:
 	CPiece(chess::SIDE s, chess::PIECE p)
-		: _b(s | p)
+		: _b((s << 3) | p)
 	{
+		ASSERT(s >= chess::SIDE_FIRST && s <= chess::SIDE_LAST);
+		ASSERT(p >= chess::NOTHING && p <= chess::PIECE_LAST);
 	}
 
 	CPiece()
@@ -40,7 +43,7 @@ public:
 
 	chess::SIDE side()const
 	{
-		return (chess::SIDE)(_b & (chess::WHITE | chess::BLACK));
+		return (chess::SIDE)(_b >> 3);
 	}
 
 	chess::PIECE piece()const
@@ -63,7 +66,7 @@ public:
 		return side() == chess::WHITE ? white_pieces[piece()] : black_pieces[piece()];
 	}
 
-	short as_short() const
+	operator short() const
 	{
 		return _b;
 	};
@@ -91,6 +94,6 @@ struct less_piece
 {
 	bool operator()(const CPiece & p1, const CPiece & p2)
 	{
-		return p1.as_short() < p2.as_short();
+		return p1 < p2;
 	}
 };

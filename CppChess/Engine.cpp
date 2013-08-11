@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "Engine.h"
 #include <boost/optional.hpp>
+#include "Perft.h"
+#include "BoardMutator.h"
 
 namespace
 {
@@ -29,35 +31,6 @@ void CEngine::set_position(CBoard& b)
 {
 	_b = b;
 }
-class CBoardMutator
-{
-private:
-	CBoard& _b;
-	CMove _mv;
-	CBoard::CMemento mem;
-#ifdef _DEBUG
-	std::string fen;
-#endif
-public:
-	CBoardMutator(CBoard& b, const CMove mv)
-		: _b(b)
-		, _mv(mv)
-		, mem(mv)
-	{
-#ifdef _DEBUG
-		fen = b.fen();
-#endif
-		mem = b.make_move(mv);
-	};
-
-	~CBoardMutator()
-	{
-		_b.unmake_move(mem);
-#ifdef _DEBUG
-		ASSERT(fen == _b.fen());
-#endif
-	}
-};
 
 int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspositionTableEntry>& tte)
 {
@@ -124,38 +97,44 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 		900, // QUEEN = 5,
 		100000, // KING = 6,
 	};
-	for (const auto & pc : b.piece_table())
+	for (int side=0; side<2; side++)
 	{
-		int mult = (pc.first.side() == sideFor ? 1 : -1);
-		mat_count += pc.second.size() * values[pc.first.piece()] * mult;
-		// 2 bishop bonus
-		if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
+		for (int piece=1; piece<7; piece++)
 		{
-			mat_count += 25 * mult;
-		}
-		// central pawn bonus
-		else if (pc.first.piece() == chess::PAWN)
-		{
-			for (const auto & pawn : pc.second)
-			{ 
-				const int file07 = pawn & 7;
-				const int rank07 = pawn >> 4;
-				if ((file07 == 3 || file07 == 4)
-					&& (rank07 == 3 || rank07 == 4))
-					mat_count += 10 * mult;
+			const CPiece p(side == 0 ? chess::WHITE : chess::BLACK, chess::PIECE(piece));
+			const auto & pc = b.piece_table()[p];
+
+			int mult = (p.side() == sideFor ? 1 : -1);
+			mat_count += pc.size() * values[p.piece()] * mult;
+			// 2 bishop bonus
+			if (p.piece() == chess::BISHOP && pc.size() > 1)
+			{
+				mat_count += 25 * mult;
 			}
-		}
-		else if (pc.first.piece() == chess::KNIGHT)
-		{
-			for (const auto & knight : pc.second)
-			{ 
-				const int file07 = knight & 7;
-				const int rank07 = knight >> 4;
-				if ((file07 > 1 && file07 < 6)
-					&& (rank07 > 1 && rank07 < 6))
-					mat_count += 10 * mult;
-				if (file07 == 0 || rank07 == 0 || file07 == 7 || rank07 == 7)
-					mat_count -= 10 * mult;
+			// central pawn bonus
+			else if (p.piece() == chess::PAWN)
+			{
+				for (const auto & pawn : pc)
+				{ 
+					const int file07 = pawn & 7;
+					const int rank07 = pawn >> 4;
+					if ((file07 == 3 || file07 == 4)
+						&& (rank07 == 3 || rank07 == 4))
+						mat_count += 10 * mult;
+				}
+			}
+			else if (p.piece() == chess::KNIGHT)
+			{
+				for (const auto & knight : pc)
+				{ 
+					const int file07 = knight & 7;
+					const int rank07 = knight >> 4;
+					if ((file07 > 1 && file07 < 6)
+						&& (rank07 > 1 && rank07 < 6))
+						mat_count += 10 * mult;
+					if (file07 == 0 || rank07 == 0 || file07 == 7 || rank07 == 7)
+						mat_count -= 10 * mult;
+				}
 			}
 		}
 	}
@@ -169,60 +148,6 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 	return (mobility / 2) + mat_count;
 
 }
-namespace {
-	struct PerftResult
-	{
-		unsigned long nodes;
-		unsigned long ep;
-		unsigned long captures;
-		unsigned long promotions;
-		unsigned long checks;
-		unsigned long castles;
-
-		PerftResult() : nodes(0), ep(0), captures(0), promotions(0), checks(0), castles(0) {}
-		PerftResult& operator+= (const PerftResult & other)
-		{
-			nodes += other.nodes;
-			/*ep += other.ep;
-			captures += other.captures;
-			promotions += other.promotions;
-			checks += other.checks;
-			*/
-			return *this;
-		};
-	};
-
-	PerftResult perft(CBoard & b, int depth)
-	{
-		PerftResult res;
-		const auto & moves = b.legal_moves();
-		if (depth == 1)
-		{
-			res.nodes = moves.size();
-			return res;
-		}
-		for (const auto & move : moves)
-		{
-			{
-				// test flags
-				if (move.is_capture())
-					res.captures++;
-				if (move.is_check())
-					res.checks++;
-				if (move.is_promotion())
-					res.promotions++;
-				if (move.is_en_passant_capture())
-					res.ep++;
-				if (move.is_castle())
-					res.castles++;
-			}
-			auto mem = b.make_move(move);
-			res += perft(b, depth-1);
-			b.unmake_move(mem);
-		}
-		return res;
-	}
-}
 
 void CEngine::Perft(int maxdepth)
 {
@@ -235,9 +160,10 @@ void CEngine::Perft(int maxdepth)
 			_s.WriteLine(ss.str());
 		}
 		{
+			CPerft perft(_b);
 			std::stringstream ss;
 			std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
-			auto nodes = perft(_b, i);
+			auto nodes = perft.DoPerft(i);
 			std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now() ;
 
 			typedef std::chrono::duration<int,std::milli> millisecs_t ;
@@ -317,10 +243,10 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 CEngine::MoveResult CEngine::negamax_root(int depth)
 {
 	auto tte = tt.get_entry(CZobrist(_b.hash()));
-	
+
 	int alpha = std::numeric_limits<int>::min();
 	int beta = std::numeric_limits<int>::max();
-	
+
 	if (tte)
 	{
 		if (tte->depth >= depth)
@@ -415,7 +341,7 @@ CMove CEngine::Think()
 
 
 
-	
+
 	MoveResult mr;
 	std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
 	mr = negamax_root(5);
@@ -423,7 +349,7 @@ CMove CEngine::Think()
 
 
 	millisecs_t duration( std::chrono::duration_cast<millisecs_t>(end-start) ) ;
-	
+
 	std::stringstream ss;
 	ss << (_nodes / (duration.count())) * 1000 << " nps, " << duration.count() << " msec";
 	_s.WriteLogLine(ss.str());

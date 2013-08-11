@@ -10,14 +10,17 @@ CZobrist::CZobrist(uint64_t k)
 
 void CZobrist::ApplyIndex(int index)
 {
-	ASSERT(index <= HASH_LAST);
+	ASSERT(index >= 0 && index <= HASH_LAST);
 	_hashkey ^= HASHES[index];
 }
 
 void CZobrist::ApplyPieceAtSquare(CPiece piece, chess::SQUARES square)
 {
-	const int p = (piece.piece() - 1) + (piece.side() == chess::WHITE ? 6 : 0);
-	ApplyIndex(PIECE_ON_SQUARE_BEGIN + p + (square*6));
+	ASSERT(piece && piece.piece());
+	const int p = piece - 1;
+	const int index = PIECE_ON_SQUARE_BEGIN + p + (square*12);
+	ASSERT(index <= 800);
+	ApplyIndex(index);
 }
 
 void CZobrist::SwitchSideOnMove()
