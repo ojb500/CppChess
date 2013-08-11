@@ -58,6 +58,31 @@ public:
 		return CMove(from, to, MOVE_NONE);
 	};
 
+	std::string longer_algebraic() const
+	{
+		std::stringstream ss;
+		ss << chess::SQUARE_STRINGS[_from];
+		if (is_capture())
+		{
+			ss << "x";
+		}
+		else
+		{
+			ss << "-";
+		}
+		ss << chess::SQUARE_STRINGS[_to];
+		if (is_promotion())
+		{
+			ASSERT(false);
+			// TODO
+		}
+		if (is_check())
+		{
+			ss << "+";
+		}
+		return ss.str();
+	};
+
 	std::string long_algebraic() const
 	{
 		std::stringstream ss;
@@ -113,6 +138,11 @@ public:
 	bool CMove::operator==(const CMove& rhs)const
 	{
 		return (_to == rhs._to && _from == rhs._from && _flags == rhs._flags && _promotion == rhs._promotion);
+	}
+
+	void CMove::set_flag(MOVE_FLAGS mv)
+	{
+		_flags = _flags | mv;
 	}
 	
 private:

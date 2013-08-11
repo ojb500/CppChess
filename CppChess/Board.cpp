@@ -214,13 +214,17 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		const CPiece taken_piece = _board[en_passant_taken_square];
 		ASSERT(taken_piece.piece() == chess::PAWN);
 		_pieces[taken_piece].erase(en_passant_taken_square);
+		mem.hash.ApplyPieceAtSquare(taken_piece, index(en_passant_taken_square));
 
 		//TODO ZOB FILE
 
 		_board[en_passant_taken_square] = CPiece();
 
 		_pieces[moved].erase(from);
+		mem.hash.ApplyPieceAtSquare(moved, index(from));
+
 		_pieces[moved].insert(to);
+		mem.hash.ApplyPieceAtSquare(moved, index(to));
 
 		_board[to] = _board[from];
 		_board[from] = CPiece();
@@ -301,7 +305,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 			_pieces[moved].erase(from);
 			mem.hash.ApplyPieceAtSquare(moved, index(from));
 			_pieces[moved].insert(to);
-			mem.hash.ApplyPieceAtSquare(moved, index(from));
+			mem.hash.ApplyPieceAtSquare(moved, index(to));
 
 			_board[to] = _board[from];
 			_board[from] = CPiece();
@@ -539,6 +543,10 @@ void CBoard::try_add_move(std::vector<CMove> & v, CMove mv)
 	}
 	else
 	{
+		if (b.is_check())
+		{
+			mv.set_flag(MOVE_CHECK);
+		}
 		v.push_back(mv);
 	}
 }

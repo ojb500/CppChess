@@ -17,7 +17,7 @@ void CZobrist::ApplyIndex(int index)
 void CZobrist::ApplyPieceAtSquare(CPiece piece, chess::SQUARES square)
 {
 	const int p = (piece.piece() - 1) + (piece.side() == chess::WHITE ? 6 : 0);
-	ApplyIndex(PIECE_ON_SQUARE_BEGIN + (square << 4) | p);
+	ApplyIndex(PIECE_ON_SQUARE_BEGIN + p + (square*6));
 }
 
 void CZobrist::SwitchSideOnMove()
@@ -38,4 +38,9 @@ uint64_t CZobrist::Hash()const
 void CZobrist::Apply(CZobrist other)
 {
 	_hashkey ^= other.Hash();
+}
+
+CZobrist::operator uint64_t() const
+{
+	return _hashkey;
 }

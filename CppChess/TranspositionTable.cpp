@@ -15,7 +15,8 @@ boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(CZobris
 
 void CTranspositionTable::store_entry(CZobrist zob, STranspositionTableEntry tte)
 {
-	_map[zob.Hash()] = tte;
+	if (tte.depth > 0)
+		_map[zob.Hash()] = tte;
 }
 
 CTranspositionTable::~CTranspositionTable(void)

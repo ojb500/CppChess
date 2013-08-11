@@ -52,5 +52,8 @@ public:
 	void ApplyEnPassantFile(int file);
 
 	uint64_t Hash()const;
+	
+	operator uint64_t() const;
+
 };
 

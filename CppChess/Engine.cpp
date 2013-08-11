@@ -2,6 +2,22 @@
 #include "Engine.h"
 #include <boost/optional.hpp>
 
+namespace
+{
+	int TrimEvaluationForMate(int eval)
+	{
+		if (eval >= 9900)
+		{
+			return eval - 1;
+		}
+		else if (eval <= -9900)
+		{
+			return eval + 1;
+		}
+		return eval;
+	}
+};
+
 CEngine::CEngine(CUciSession & us)
 	: _s(us)
 	, _nodes(0)
@@ -57,13 +73,15 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 
 	int s=0;
 	if (m.is_double_push())
-		s+=1;
+		s+=5;
 	if (m.is_capture())
-		s+=3;
+	{
+		s+=10;
+	}
 	if (m.is_check())
-		s+=3;
+		s+=15;
 	if (m.is_promotion())
-		s+=3;
+		s+=10;
 	const int tofile = m.to() & 7;
 	const int torank = m.to() >> 3;
 	if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
@@ -75,9 +93,9 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 }
 
 
-/*s*/ int CEngine::heuristic(CBoard& b)
+/*s*/ int CEngine::heuristic(CBoard& b, chess::SIDE sideFor)
 {
-	int color = (b.side_on_move() == chess::WHITE ? 1 : -1);
+	int color = (sideFor == chess::WHITE ? 1 : -1);
 	auto lm = b.legal_moves();
 
 	if (!lm.size())
@@ -86,7 +104,7 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 		if (b.is_check())
 		{
 			// checkmated
-			return -10000;
+			return sideFor == b.side_on_move() ? -10000 : 10000;
 		}
 		else
 		{
@@ -108,7 +126,7 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 	};
 	for (const auto & pc : b.piece_table())
 	{
-		int mult = (pc.first.side() == b.side_on_move() ? 1 : -1);
+		int mult = (pc.first.side() == sideFor ? 1 : -1);
 		mat_count += pc.second.size() * values[pc.first.piece()] * mult;
 		// 2 bishop bonus
 		if (pc.first.piece() == chess::BISHOP && pc.second.size() > 1)
@@ -229,14 +247,19 @@ void CEngine::Perft(int maxdepth)
 			ss << "    caps " << nodes.captures << ", eps " << nodes.ep << ", oo " << nodes.castles << ", proms " << nodes.promotions << ", checks " << nodes.checks;
 			_s.WriteLine(ss.str());
 		}
-	}
+	}	
 	_s.WriteLine("done");
 }
 
+//int CEngine::quiescence_negamax(int depth, int alpha, int beta, int color)
+//{
+//}
+
 int CEngine::negamax(int depth, int alpha, int beta, int color)
 {
+	_nodes++;
 	if (depth == 0)
-		return color * heuristic(_b);
+		return heuristic(_b, _b.side_on_move());
 
 	auto tte = tt.get_entry(CZobrist(_b.hash()));
 
@@ -251,7 +274,7 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 	auto lm = _b.legal_moves();
 	if (lm.size() == 0)
 	{
-		return color * heuristic(_b);
+		return heuristic(_b, _b.side_on_move());
 	}
 	const int ply = _b.ply();
 	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
@@ -263,7 +286,7 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 	{
 		{
 			CBoardMutator mut(_b,mv);
-			const int val = -negamax(depth - 1, -beta, -alpha, -color);
+			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
 			if (val >= beta)
 			{
 				STranspositionTableEntry tte;
@@ -287,19 +310,17 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 			}
 		}
 	}
-	
+
 	return alpha;
 }
 
-CEngine::MoveResult CEngine::negamax_root()
+CEngine::MoveResult CEngine::negamax_root(int depth)
 {
-#ifdef _DEBUG
-	const int depth = 4;
-#else
-	const int depth = 5;
-#endif
-
 	auto tte = tt.get_entry(CZobrist(_b.hash()));
+	
+	int alpha = std::numeric_limits<int>::min();
+	int beta = std::numeric_limits<int>::max();
+	
 	if (tte)
 	{
 		if (tte->depth >= depth)
@@ -317,8 +338,6 @@ CEngine::MoveResult CEngine::negamax_root()
 	{
 		ASSERT(false);
 	}
-	int alpha = std::numeric_limits<int>::min();
-	int beta = std::numeric_limits<int>::max();
 	const int color = 1;
 
 
@@ -335,7 +354,7 @@ CEngine::MoveResult CEngine::negamax_root()
 		std::stringstream ss;
 		ss << "Legal moves (" << lm.size() << "): ";
 		for (const auto & mv : lm)
-			ss << mv.long_algebraic() << " ";
+			ss << mv.longer_algebraic() << " ";
 		_s.WriteLogLine(ss.str());
 	}
 
@@ -345,7 +364,7 @@ CEngine::MoveResult CEngine::negamax_root()
 		write_current_move(mv.long_algebraic(), n++);
 		{
 			CBoardMutator mut(_b,mv);
-			const int val = -negamax(depth - 1, -beta, -alpha, -color);
+			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
 
 			if (val >= beta)
 				continue;
@@ -363,7 +382,7 @@ CEngine::MoveResult CEngine::negamax_root()
 		ss << "info pv ";
 		for (auto i = _pv.begin() + _b.ply(); i != _pv.end(); ++i )
 		{
-			if (i->to() == chess::SQUARE_LAST && i->from() == chess::SQUARE_LAST)
+			if (i->to() == chess::SQUARE_LAST &&  i->from() == chess::SQUARE_LAST)
 				break;
 
 			ss << i->long_algebraic();
@@ -393,8 +412,23 @@ CMove CEngine::Think()
 	_s.WriteLogLine("Thinking\n" + _b.board());
 	_nodes = 0;
 
-	auto result = negamax_root();
-	return result.second;
+
+
+
+	
+	MoveResult mr;
+	std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
+	mr = negamax_root(5);
+	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now() ;
+
+
+	millisecs_t duration( std::chrono::duration_cast<millisecs_t>(end-start) ) ;
+	
+	std::stringstream ss;
+	ss << (_nodes / (duration.count())) * 1000 << " nps, " << duration.count() << " msec";
+	_s.WriteLogLine(ss.str());
+
+	return mr.second;
 }
 
 

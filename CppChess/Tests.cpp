@@ -4,12 +4,17 @@
 #include "Board.h"
 using namespace std;
 
+int s_testsRun = 0;
+int s_testsFailed = 0;
+
 #define CHECK(msg,cond) do \
 { \
 	cout << "checking " << msg << "..."; \
+	s_testsRun++; \
 	if (!(cond)) \
 { \
 	cout << "FAILED " << endl; \
+	s_testsFailed++; \
 	ASSERT(false); \
 } \
 		else { \
@@ -20,9 +25,11 @@ using namespace std;
 #define CHECK2(msg,msg2,cond) do \
 { \
 	cout << "checking " << msg << "..."; \
+	s_testsRun++; \
 	if (!(cond)) \
 { \
 	cout << "FAILED (" << msg2 << ")" << endl; \
+	s_testsFailed++; \
 	ASSERT(false); \
 } \
 		else { \
@@ -33,9 +40,11 @@ using namespace std;
 #define CHECK3(msg,msgfail,msgok,cond) do \
 { \
 	cout << "checking " << msg << "..."; \
+	s_testsRun++; \
 	if (!(cond)) \
 { \
 	cout << "FAILED (" << msgfail << ")" << endl; \
+	s_testsFailed++; \
 	ASSERT(false); \
 } \
 		else { \
@@ -46,8 +55,40 @@ using namespace std;
 #define CHECK_GT(msg,val,val2) CHECK3(msg,val << " <= " << val2,val << " > " << val2,val > val2)
 #define CHECK_LT(msg,val,val2) CHECK3(msg,val << " >= " << val2,val << " < " << val2, val < val2)
 #define CHECK_EQ(msg,val,val2) CHECK3(msg,val << " != " << val2,val2, val == val2)
+
 namespace
 {
+	void EngineTests()
+	{
+		{// easy mate in 1
+			CBoard b;
+			CUciSession s(cin, cout, cout);
+			CEngine e(s);
+			b.set_fen_position("8/8/8/8/8/8/6PP/2r1k2K b - - 0 1");
+			e.set_position(b);
+			auto think = e.Think();
+			cout << think.long_algebraic() << endl;
+			
+		}
+		{ // tricky mate
+			CBoard b;
+			CUciSession s(cin, cout, cout);
+			CEngine e(s);
+			b.set_fen_position("3r3k/2qnb2p/p2p4/1pnBprP1/1P3P2/P6R/2P1Q2P/R1B3K1 w - - 0 23");
+			e.set_position(b);
+			auto think = e.Think();
+			cout << think.long_algebraic() << endl;
+		}
+		{
+			CBoard b;
+			CUciSession s(cin, cout, cout);
+			CEngine e(s);
+			b.set_fen_position("k7/6q1/8/8/3Q4/8/8/7K w - - 0 1");
+			e.set_position(b);
+			auto think = e.Think();
+			cout << think.long_algebraic() << endl;
+		}
+	}
 	void MoveGenTests()
 	{
 
@@ -55,7 +96,7 @@ namespace
 			CBoard b;
 			b.set_fen_position("k7/8/8/8/3pP3/8/8/7K b - e3 0 1");
 			cout << b.board();
-			
+
 			const auto lm = b.legal_moves();
 			for (const auto & mv : lm)
 			{
@@ -75,18 +116,18 @@ namespace
 			{
 				CHECK_EQ("it is d4e3", ep->long_algebraic(), "d4e3");
 
-				
+
 				auto mem = b.make_move(*ep);
 
 				const std::string fen_after = "k7/8/8/8/8/4p3/8/7K w - - 1 2";
 				CHECK_EQ("move made correctly", b.fen(), fen_after);
-				
+
 				b.unmake_move(mem);
 
 				cout << b.board() << endl;
 
 				CHECK_EQ("move unmade correctly", b.fen(), orig_fen);
-				
+
 			}
 
 		}
@@ -96,7 +137,7 @@ namespace
 			cout << b.board();
 
 			CHECK("checkmate is recognised", b.is_checkmate());
-			CHECK_LT("the position evaluation is good", CEngine::heuristic(b), -9999);
+			CHECK_LT("the position evaluation is good", CEngine::heuristic(b, b.side_on_move()), -9999);
 
 		}
 		{
@@ -117,18 +158,22 @@ namespace
 			b.set_fen_position("8/8/8/8/8/7Q/5R2/2k3K1 w - - 0 1");
 			cout << b.board();
 
-			CHECK_GT("white is winning", CEngine::heuristic(b), 1000);
+			CHECK_GT("white is winning", CEngine::heuristic(b, b.side_on_move()), 1000);
 			// CHECK_LT("mate in two is recognisd", CEngine::heuristic(b), -99998);
 		}
-		{
-			CUciSession s(cin, cout, cout);
+	}
 
-		}
+	void PerftTests()
+	{
 	}
 }
 
 CTests::CTests(void)
 {
+	EngineTests();
 	MoveGenTests();
+	PerftTests();
+
+	cout << "ran " << s_testsRun << " tests of which " << s_testsFailed << " failed" << endl;
 }
 

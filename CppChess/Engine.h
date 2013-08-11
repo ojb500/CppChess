@@ -14,11 +14,14 @@ public:
 
 	typedef std::pair<int, CMove> MoveResult;
 
-	static int heuristic (CBoard& b);
+	static int heuristic (CBoard& b, chess::SIDE sideFor);
 
 private:
-	MoveResult negamax_root();
+	MoveResult negamax_root(int depth);
 	int negamax(int depth, int alpha, int beta, int color);
+	int quiescence_negamax(int alpha, int beta);
+
+	typedef std::chrono::duration<int,std::milli> millisecs_t ;
 
 	CTranspositionTable tt;
 
