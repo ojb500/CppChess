@@ -1,4 +1,6 @@
 #include "stdafx.h"
+
+
 #include "BoardMutator.h"
 
 CBoardMutator::CBoardMutator(CBoard& b, const CMove mv)

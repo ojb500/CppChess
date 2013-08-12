@@ -22,6 +22,15 @@ namespace
 		return (sq & 0x88) != 0;
 	}
 
+	const CBoard::INT_SQUARES oo_rook_from_square[]		=	{ CBoard::H1, CBoard::H8 };
+	const CBoard::INT_SQUARES oo_rook_to_square[]		=	{ CBoard::F1, CBoard::F8 };
+	const CBoard::INT_SQUARES oo_king_from_square[]		=	{ CBoard::E1, CBoard::E8 };
+	const CBoard::INT_SQUARES oo_king_to_square[]		=	{ CBoard::G1, CBoard::G8 };
+	const CBoard::INT_SQUARES ooo_rook_from_square[]	=	{ CBoard::A1, CBoard::A8 };
+	const CBoard::INT_SQUARES ooo_rook_to_square[]		=	{ CBoard::D1, CBoard::D8 };
+	const CBoard::INT_SQUARES ooo_king_from_square[]	=	{ CBoard::E1, CBoard::E8 };
+	const CBoard::INT_SQUARES ooo_king_to_square[]		=	{ CBoard::C1, CBoard::C8 };
+
 };
 
 const CBoard::PieceTable& CBoard::piece_table()const
@@ -186,6 +195,66 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 	const CPiece moved = _board[from];
 
 	mem.cr = _castling;
+	if (_castling != chess::CR_NONE)
+	{
+		// Some moves may remove our castling rights
+		// The capture of a rook means we can't castle there
+		if (mv.is_capture())
+		{
+			const CPiece& piece = _board[to];
+			if (piece.piece() == chess::ROOK) 
+			{
+				switch (to)
+				{
+				case A1: // WQ
+					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WQ);
+					break;
+				case A8: // BQ
+					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BQ);
+					break;
+				case H1: // WK
+					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WK);
+					break;
+				case H8: // BK
+					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BK);
+					break;
+				}
+			}
+		}
+		// King moves remove all our CRs
+		if (moved.piece() == chess::KING)
+		{
+			if (moved.side() == chess::WHITE)
+			{
+				_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_WK | chess::CR_WQ));
+			}
+			else
+			{
+				_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_BK | chess::CR_BQ));
+			}
+		}
+		else if (moved.piece() == chess::ROOK)
+		{
+			switch (from)
+			{
+			case A1: // WQ
+				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WQ);
+				break;
+			case A8: // BQ
+				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BQ);
+				break;
+			case H1: // WK
+				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WK);
+				break;
+			case H8: // BK
+				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BK);
+				break;
+			}
+		}
+	}
+
+
+
 	mem.ep = _en_passant_square;
 	_en_passant_square = XA1;
 	if (mv.is_normal_move())
@@ -235,7 +304,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		mem.hash.ApplyPieceAtSquare(promoted, index(to));
 		_pieces[pawn].erase(from);
 		mem.hash.ApplyPieceAtSquare(pawn, index(from));
-		
+
 		_board[to] = promoted;
 		_board[from] = CPiece();
 	}
@@ -280,38 +349,35 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		const INT_SQUARES king_from = from; // TODO 960
 		const INT_SQUARES king_to = to;
 
+		if (_side == chess::WHITE)
+		{
+			_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_WK | chess::CR_WQ));
+		}
+		else
+		{
+			_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_BK | chess::CR_BQ));
+		}
+
 		// find the rook - 960
 		INT_SQUARES rook_from, rook_to;
 		if (mv.is_oo())
 		{
-			if (_side == chess::WHITE)
-			{
-				rook_from = H1;
-				rook_to = F1;
-			}
-			else
-			{
-				rook_from = H8;
-				rook_to = F8;
-			}
+			rook_from = oo_rook_from_square[_side];
+			rook_to = oo_rook_to_square[_side];
 		}
 		else
 		{
-			if (_side == chess::WHITE)
-			{
-				rook_from = A1;
-				rook_to = D1;
-			}
-			else
-			{
-				rook_from = A8;
-				rook_to = D8;
-			}
+			rook_from = ooo_rook_from_square[_side];
+			rook_to = ooo_rook_to_square[_side];
 		}
+
+		ASSERT((rook_from >> 4) == (from >> 4));
+		ASSERT((rook_to >> 4) == (to >> 4));
 
 		const CPiece rook = _board[rook_from];
 		ASSERT(rook.piece() == chess::ROOK);
 		ASSERT(rook.side() == _side);
+		ASSERT(! _board[rook_to]);
 
 		_pieces[rook].erase(rook_from);
 		mem.hash.ApplyPieceAtSquare(rook, index(rook_from));
@@ -326,6 +392,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		_pieces[moved].insert(king_to);
 		mem.hash.ApplyPieceAtSquare(moved, index(king_to));
 
+		ASSERT(_board[king_from]);
 		_board[king_to] = _board[king_from];
 		_board[king_from] = CPiece();
 	}
@@ -402,42 +469,42 @@ void CBoard::unmake_move(CMemento m)
 
 		_pieces[taken_piece].insert(en_passant_taken_square);
 		_board[en_passant_taken_square] = taken_piece;
+
+		_board[from] = moved;
+		_board[to] = CPiece();
+
+		_pieces[moved].insert(from);
+		_pieces[moved].erase(to);
 	}
 	else if (m.move.is_castle())
 	{
+		_board[from] = moved;
+		_board[to] = CPiece();
+
+		_pieces[moved].erase(to);
+		_pieces[moved].insert(from);
+
 		ASSERT(moved.piece() == chess::KING);
 		// find the rook - 960
 		INT_SQUARES rook_from, rook_to;
 		if (m.move.is_oo())
 		{
-			if (_side == chess::WHITE)
-			{
-				rook_from = H1;
-				rook_to = F1;
-			}
-			else
-			{
-				rook_from = H8;
-				rook_to = F8;
-			}
+			rook_from = oo_rook_from_square[_side];
+			rook_to = oo_rook_to_square[_side];
 		}
 		else
 		{
-			if (_side == chess::WHITE)
-			{
-				rook_from = A1;
-				rook_to = D1;
-			}
-			else
-			{
-				rook_from = A8;
-				rook_to = D8;
-			}
+			rook_from = ooo_rook_from_square[_side];
+			rook_to = ooo_rook_to_square[_side];
 		}
+
+		ASSERT((rook_from >> 4) == (from >> 4));
+		ASSERT((rook_to >> 4) == (to >> 4));
 
 		const CPiece rook = _board[rook_to];
 		ASSERT(rook.piece() == chess::ROOK);
 		ASSERT(rook.side() == _side);
+		ASSERT(! _board[rook_from]);
 
 		_pieces[rook].insert(rook_from);
 		_pieces[rook].erase(rook_to);
@@ -630,6 +697,10 @@ std::vector<CMove> CBoard::legal_moves()
 	std::vector<CMove> v;
 	v.reserve(40);
 	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
+	const chess::CASTLING_RIGHTS my_castling = 
+		chess::CASTLING_RIGHTS(_castling &
+		(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
+
 
 	CBoard b2(*this);
 	for (int px = chess::PIECE_FIRST; px <= chess::PIECE_LAST; ++ px)
@@ -638,17 +709,17 @@ std::vector<CMove> CBoard::legal_moves()
 		const CPieceList& theList = _pieces[thePiece];
 
 		if (theList.empty()) continue;
-		if (thePiece.piece() == chess::KING)
+		if (thePiece.piece() == chess::KING 
+			&& my_castling != chess::CR_NONE
+			&& !b2.is_check())
 		{
+
 			// castling
-			const INT_SQUARES k = *theList.begin();
+			const INT_SQUARES k = theList.only();
 			const INT_SQUARES home_square = (_side == chess::WHITE ? E1 : E8);
 			if (k == home_square)
 			{
 				// TODO 960
-				const chess::CASTLING_RIGHTS my_castling = 
-					chess::CASTLING_RIGHTS(_castling &
-					(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
 
 				if (my_castling)
 				{

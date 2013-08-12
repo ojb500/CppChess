@@ -83,7 +83,6 @@ int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspos
 		{
 			return 0; // drawn position
 		}
-		ASSERT(false);
 	}
 
 	// material count
@@ -215,22 +214,10 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
 			if (val >= beta)
 			{
-				STranspositionTableEntry tte;
-				tte.depth = depth - 1;
-				tte.mv = mv;
-				tte.nt = NT_LB;
-				tte.score = beta;
-				tt.store_entry(CZobrist(_b.hash()), tte);
 				return val;
 			}
 			if (val > alpha)
 			{
-				STranspositionTableEntry tte;
-				tte.depth = depth - 1;
-				tte.mv = mv;
-				tte.nt = NT_UB;
-				tte.score = alpha;
-				tt.store_entry(CZobrist(_b.hash()), tte);
 				_pv[_b.ply() - 1] = mv;
 				alpha = val;
 			}
@@ -344,7 +331,7 @@ CMove CEngine::Think()
 
 	MoveResult mr;
 	std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
-	mr = negamax_root(5);
+	mr = negamax_root(6);
 	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now() ;
 
 

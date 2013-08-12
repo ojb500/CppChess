@@ -15,6 +15,9 @@ namespace chess
 	inline CASTLING_RIGHTS operator|(CASTLING_RIGHTS a, CASTLING_RIGHTS b)
 	{return static_cast<CASTLING_RIGHTS>(static_cast<int>(a) | static_cast<int>(b));}
 
+	inline CASTLING_RIGHTS operator&(CASTLING_RIGHTS a, CASTLING_RIGHTS b)
+	{return static_cast<CASTLING_RIGHTS>(static_cast<int>(a) & static_cast<int>(b));}
+
 	enum SQUARES
 	{
 		A8, B8, C8, D8, E8, F8, G8, H8,
