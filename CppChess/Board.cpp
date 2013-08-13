@@ -654,9 +654,17 @@ void CBoard::try_add_castling_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 	if (mv.is_ooo())
 	{
 		// check d1/d8
-		const INT_SQUARES dn = int_index(chess::SQUARES(mv.to() + 1));
-		if (is_occupied(dn) || is_square_attacked(other_side, dn))
-			return;
+		{
+			const INT_SQUARES dn = int_index(chess::SQUARES(mv.to() + 1));
+			if (is_occupied(dn) || is_square_attacked(other_side, dn))
+				return;
+		}
+		// check b1/b8 does not block the rook
+		{
+			const INT_SQUARES dn = int_index(chess::SQUARES(mv.to() - 1));
+			if (is_occupied(dn))
+				return;
+		}
 	}
 	else
 	{
