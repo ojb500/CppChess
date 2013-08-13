@@ -92,33 +92,39 @@ void CUciSession::listen()
 			j++;
 			b = CBoard();
 
-			if (*j != "startpos")
-			{
-				std::string fen = boost::algorithm::join(std::vector<std::string>(j, tok.end()), " ");
-				b.set_fen_position(fen);
-			}
-			else
+			if (*j == "fen")
 			{
 				j++;
-				if (j != tok.end())
+				auto i = j;
+				while (j != tok.end() && *j != "moves")
+					j++;
+
+				std::string fen = boost::algorithm::join(std::vector<std::string>(i, j), " ");
+				b.set_fen_position(fen);
+			}
+			else if (*j == "startpos")
+			{
+				j++;
+			}
+
+			if (j != tok.end())
+			{
+				ASSERT(*j == "moves");
+				j++; // moves
+				while (j != tok.end())
 				{
-					j++; // moves
-					ASSERT(*j == "moves");
-					while (j != tok.end())
+					CMove mv = CMove::FromString(*j++);
+					auto lm = b.legal_moves();
+					auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
 					{
-						CMove mv = CMove::FromString(*j++);
-						auto lm = b.legal_moves();
-						auto m = find_if(lm.cbegin(), lm.cend(), [&](const CMove & m)
-						{
-							return m.from() == mv.from() && m.to() == mv.to();
-						});
-						if (m != lm.cend())
-						{
-							b.make_move(*m);
-						}
-						else
-							ASSERT(false);
+						return m.from() == mv.from() && m.to() == mv.to();
+					});
+					if (m != lm.cend())
+					{
+						b.make_move(*m);
 					}
+					else
+						ASSERT(false);
 				}
 			}
 			e->set_position(b);
