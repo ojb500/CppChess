@@ -44,7 +44,7 @@ public:
 		INT_SQUARE_FIRST = A8, INT_SQUARE_LAST = XH1
 	};
 
-	
+
 	struct CMemento
 	{
 	public:
@@ -105,13 +105,13 @@ public:
 		bool equals(const CPieceTable& other)const
 		{
 			for (int side=0; side<2; ++side)
-			for (int i=1;i<7;++i)
-			{
-				const CPiece pc(static_cast<chess::SIDE>(side), static_cast<chess::PIECE>(i));
-				if (at(pc) != other[pc])
-					return false;
-			}
-			return true;
+				for (int i=1;i<7;++i)
+				{
+					const CPiece pc(static_cast<chess::SIDE>(side), static_cast<chess::PIECE>(i));
+					if (at(pc) != other[pc])
+						return false;
+				}
+				return true;
 		}
 	};
 
@@ -134,7 +134,7 @@ public:
 	std::string board() const;
 
 	virtual std::string fen() const override;
-	
+
 	bool assert_piecelist_consistent() const;
 
 	void set_fen_position(std::string);
@@ -144,6 +144,24 @@ public:
 	CBoard();
 
 	const PieceTable& piece_table() const;
+
+	static CBoard::INT_SQUARES int_index(chess::SQUARES sq)
+	{
+		return CBoard::INT_SQUARES(sq + (sq & ~7));
+	}
+
+	static chess::SQUARES index(CBoard::INT_SQUARES sq)
+	{
+		const int row = (sq / 16);
+		const int col = (sq % 16);
+		ASSERT(col < 8);
+		return chess::SQUARES((row * 8) + col);
+	}
+
+	static bool off_board(CBoard::INT_SQUARES sq)
+	{
+		return (sq & 0x88) != 0;
+	}
 
 private:
 	CPiece _board[128];

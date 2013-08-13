@@ -14,8 +14,6 @@ public:
 
 	typedef std::pair<int, CMove> MoveResult;
 
-	static int heuristic (CBoard& b, chess::SIDE sideFor);
-
 private:
 	MoveResult negamax_root(int depth);
 	int negamax(int depth, int alpha, int beta, int color);

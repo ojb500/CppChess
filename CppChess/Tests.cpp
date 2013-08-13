@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Tests.h"
 #include "Engine.h"
+#include "Heuristic.h"
 #include "Board.h"
 using namespace std;
 
@@ -147,7 +148,7 @@ namespace
 			cout << b.board();
 
 			CHECK("checkmate is recognised", b.is_checkmate());
-			CHECK_LT("the position evaluation is good", CEngine::heuristic(b, b.side_on_move()), -9999);
+			CHECK_LT("the position evaluation is good", CHeuristic(b).value(), -9999);
 
 		}
 		{
@@ -168,7 +169,7 @@ namespace
 			b.set_fen_position("8/8/8/8/8/7Q/5R2/2k3K1 w - - 0 1");
 			cout << b.board();
 
-			CHECK_GT("white is winning", CEngine::heuristic(b, b.side_on_move()), 1000);
+			CHECK_GT("white is winning", CHeuristic(b).value(), 1000);
 			// CHECK_LT("mate in two is recognisd", CEngine::heuristic(b), -99998);
 		}
 	}

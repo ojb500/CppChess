@@ -4,24 +4,6 @@
 
 namespace
 {
-	CBoard::INT_SQUARES int_index(chess::SQUARES sq)
-	{
-		return CBoard::INT_SQUARES(sq + (sq & ~7));
-	}
-
-	chess::SQUARES index(CBoard::INT_SQUARES sq)
-	{
-		const int row = (sq / 16);
-		const int col = (sq % 16);
-		ASSERT(col < 8);
-		return chess::SQUARES((row * 8) + col);
-	}
-
-	bool off_board(CBoard::INT_SQUARES sq)
-	{
-		return (sq & 0x88) != 0;
-	}
-
 	const CBoard::INT_SQUARES oo_rook_from_square[]		=	{ CBoard::H1, CBoard::H8 };
 	const CBoard::INT_SQUARES oo_rook_to_square[]		=	{ CBoard::F1, CBoard::F8 };
 	const CBoard::INT_SQUARES oo_king_from_square[]		=	{ CBoard::E1, CBoard::E8 };

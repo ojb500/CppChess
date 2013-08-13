@@ -59,6 +59,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -78,8 +81,15 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y $(ProjectDir)*.txt $(ProjectDir)$(OutDir)
+xcopy /y $(ProjectDir)*.epd $(ProjectDir)$(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <Text Include="Params.txt">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
@@ -87,6 +97,8 @@
     <ClInclude Include="BoardMutator.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Engine.h" />
+    <ClInclude Include="Heuristic.h" />
+    <ClInclude Include="HeuristicParameters.h" />
     <ClInclude Include="Move.h" />
     <ClInclude Include="Perft.h" />
     <ClInclude Include="Piece.h" />
@@ -103,6 +115,8 @@
     <ClCompile Include="BoardMutator.cpp" />
     <ClCompile Include="CppChess.cpp" />
     <ClCompile Include="Engine.cpp" />
+    <ClCompile Include="Heuristic.cpp" />
+    <ClCompile Include="HeuristicParameters.cpp" />
     <ClCompile Include="Move.cpp" />
     <ClCompile Include="Perft.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -115,7 +129,7 @@
     <ClCompile Include="Zobrist.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="perftsuite.epd">
+    <None Include="perftsuite.epd.txt">
       <DeploymentContent>true</DeploymentContent>
     </None>
   </ItemGroup>
