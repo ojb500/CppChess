@@ -45,44 +45,46 @@ CBoard::LookupTables CBoard::createLookupTables()
 		for (int p = chess::PIECE_FIRST; p <= chess::PIECE_LAST; ++p)
 		{
 			CPiece pc = CPiece(chess::SIDE(s),chess::PIECE(p));
+			short ps = pc;
 
 			for (int sq = chess::SQUARE_FIRST; sq <= chess::SQUARE_LAST; ++sq)
 			{
 				const INT_SQUARES square = int_index(chess::SQUARES(sq));
+
 				// lt[pc][square] has the attacks;
 				switch (pc.piece())
 				{
 				case chess::ROOK:
-					AddOffsetAttacks(square, -1,  -1, lt[pc][square]);
-					AddOffsetAttacks(square, +1,  -1, lt[pc][square]);
-					AddOffsetAttacks(square, +16, -1, lt[pc][square]);
-					AddOffsetAttacks(square, -16, -1, lt[pc][square]);
+					AddOffsetAttacks(square, -1,  -1, lt[ps][square]);
+					AddOffsetAttacks(square, +1,  -1, lt[ps][square]);
+					AddOffsetAttacks(square, +16, -1, lt[ps][square]);
+					AddOffsetAttacks(square, -16, -1, lt[ps][square]);
 					break;
 				case chess::BISHOP:
-					AddOffsetAttacks(square, -17, -1, lt[pc][square]);
-					AddOffsetAttacks(square, +17, -1, lt[pc][square]);
-					AddOffsetAttacks(square, +15, -1, lt[pc][square]);
-					AddOffsetAttacks(square, -15, -1, lt[pc][square]);
+					AddOffsetAttacks(square, -17, -1, lt[ps][square]);
+					AddOffsetAttacks(square, +17, -1, lt[ps][square]);
+					AddOffsetAttacks(square, +15, -1, lt[ps][square]);
+					AddOffsetAttacks(square, -15, -1, lt[ps][square]);
 					break;
 				case chess::QUEEN:
-					AddOffsetAttacks(square, -15, -1, lt[pc][square]);
-					AddOffsetAttacks(square, +15, -1, lt[pc][square]);
-					AddOffsetAttacks(square, +17, -1, lt[pc][square]);
-					AddOffsetAttacks(square, -17, -1, lt[pc][square]);
-					AddOffsetAttacks(square, -1,  -1, lt[pc][square]);
-					AddOffsetAttacks(square, +1,  -1, lt[pc][square]);
-					AddOffsetAttacks(square, +16, -1, lt[pc][square]);
-					AddOffsetAttacks(square, -16, -1, lt[pc][square]);
+					AddOffsetAttacks(square, -15, -1, lt[ps][square]);
+					AddOffsetAttacks(square, +15, -1, lt[ps][square]);
+					AddOffsetAttacks(square, +17, -1, lt[ps][square]);
+					AddOffsetAttacks(square, -17, -1, lt[ps][square]);
+					AddOffsetAttacks(square, -1,  -1, lt[ps][square]);
+					AddOffsetAttacks(square, +1,  -1, lt[ps][square]);
+					AddOffsetAttacks(square, +16, -1, lt[ps][square]);
+					AddOffsetAttacks(square, -16, -1, lt[ps][square]);
 					break;
 				case chess::KNIGHT:
-					AddOffsetAttacks(square, +18, 1, lt[pc][square]);
-					AddOffsetAttacks(square, +33, 1, lt[pc][square]);
-					AddOffsetAttacks(square, +31, 1, lt[pc][square]);
-					AddOffsetAttacks(square, +14, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -18, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -33, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -31, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -14, 1, lt[pc][square]);
+					AddOffsetAttacks(square, +18, 1, lt[ps][square]);
+					AddOffsetAttacks(square, +33, 1, lt[ps][square]);
+					AddOffsetAttacks(square, +31, 1, lt[ps][square]);
+					AddOffsetAttacks(square, +14, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -18, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -33, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -31, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -14, 1, lt[ps][square]);
 
 					//  0  1  2  3
 					// 16 17 18 19
@@ -90,14 +92,14 @@ CBoard::LookupTables CBoard::createLookupTables()
 					// 48 49 50 51
 					break;
 				case chess::KING:
-					AddOffsetAttacks(square, -15, 1, lt[pc][square]);
-					AddOffsetAttacks(square, +15, 1, lt[pc][square]);
-					AddOffsetAttacks(square, +17, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -17, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -1,  1, lt[pc][square]);
-					AddOffsetAttacks(square, +1,  1, lt[pc][square]);
-					AddOffsetAttacks(square, +16, 1, lt[pc][square]);
-					AddOffsetAttacks(square, -16, 1, lt[pc][square]);
+					AddOffsetAttacks(square, -15, 1, lt[ps][square]);
+					AddOffsetAttacks(square, +15, 1, lt[ps][square]);
+					AddOffsetAttacks(square, +17, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -17, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -1,  1, lt[ps][square]);
+					AddOffsetAttacks(square, +1,  1, lt[ps][square]);
+					AddOffsetAttacks(square, +16, 1, lt[ps][square]);
+					AddOffsetAttacks(square, -16, 1, lt[ps][square]);
 					break;
 				case chess::PAWN:
 					break;

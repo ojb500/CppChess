@@ -168,7 +168,7 @@ private:
 	PieceTable _pieces;
 
 	bool is_occupied(INT_SQUARES sq) const;
-	typedef std::map<CPiece, std::map<INT_SQUARES, std::vector<std::vector<INT_SQUARES>>>, less_piece> LookupTables;
+	typedef std::map<short, std::map<INT_SQUARES, std::vector<std::vector<INT_SQUARES>>>> LookupTables;
 
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 
