@@ -938,7 +938,7 @@ std::vector<CMove> CBoard::legal_moves()
 		if (theList.empty()) continue;
 		if (thePiece.piece() == chess::KING 
 			&& my_castling != chess::CR_NONE
-			&& !is_check())
+			&& !b2.is_check())
 		{
 
 			// castling
