@@ -788,10 +788,12 @@ std::vector<CMove> CBoard::legal_moves_q()
 	CBoard b2(*this);
 	for (int px = chess::PIECE_FIRST; px <= chess::PIECE_LAST; ++ px)
 	{
+
 		const CPiece thePiece(_side, static_cast<chess::PIECE>(px));
 		const CPieceList& theList = _pieces[thePiece];
 
 		if (theList.empty()) continue;
+
 		//if (thePiece.piece() == chess::KING 
 		//	&& my_castling != chess::CR_NONE
 		//	&& !b2.is_check())
@@ -817,6 +819,7 @@ std::vector<CMove> CBoard::legal_moves_q()
 		//		}
 		//	}
 		//}
+
 
 		switch (thePiece.piece())
 		{
@@ -920,13 +923,13 @@ std::vector<CMove> CBoard::legal_moves()
 {
 	std::vector<CMove> v;
 	v.reserve(40);
-	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
+	const chess::SIDE the_other_side = other_side(_side);
 	const chess::CASTLING_RIGHTS my_castling = 
 		chess::CASTLING_RIGHTS(_castling &
 		(_side == chess::WHITE ? (chess::CR_WK | chess::CR_WQ) : (chess::CR_BK | chess::CR_BQ)));
 
-
 	CBoard b2(*this);
+
 	for (int px = chess::PIECE_FIRST; px <= chess::PIECE_LAST; ++ px)
 	{
 		const CPiece thePiece(_side, static_cast<chess::PIECE>(px));
@@ -935,7 +938,7 @@ std::vector<CMove> CBoard::legal_moves()
 		if (theList.empty()) continue;
 		if (thePiece.piece() == chess::KING 
 			&& my_castling != chess::CR_NONE
-			&& !b2.is_check())
+			&& !is_check())
 		{
 
 			// castling
@@ -978,7 +981,7 @@ std::vector<CMove> CBoard::legal_moves()
 							if (atSquare > 0)
 							{
 								// poss capture
-								if (atSquare.side() == other_side)
+								if (atSquare.side() == the_other_side)
 								{
 									try_add_move(b2, v, CMove(index(from), index(to), MOVE_CAPTURE));
 								}
@@ -1106,7 +1109,7 @@ void CBoard::set_fen_position(std::string fen)
 	boost::algorithm::trim(fen);
 	if (fen == "1")
 	{
-		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RNB2r2 w KQkq - 0 1");
+		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RN_br2 w KQkq - 0 1");
 		return;
 	}
 	if (fen == "P2")
@@ -1221,9 +1224,9 @@ void CBoard::set_fen_position(std::string fen)
 }
 bool CBoard::assert_piecelist_consistent() const
 {
-	CBoard b2;
-	b2.set_fen_position(fen());
-	return b2._pieces.equals(_pieces);
+	CBoard _b;
+	_b.set_fen_position(fen());
+	return _b._pieces.equals(_pieces);
 };
 
 std::string CBoard::fen() const 
