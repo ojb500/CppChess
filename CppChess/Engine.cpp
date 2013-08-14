@@ -5,6 +5,8 @@
 #include "BoardMutator.h"
 #include "Heuristic.h"
 
+using namespace std;
+
 namespace
 {
 	int TrimEvaluationForMate(int eval)
@@ -25,7 +27,6 @@ CEngine::CEngine(CUciSession & us)
 	: _s(us)
 	, _nodes(0)
 {
-	_pv.resize(100);
 }
 
 void CEngine::set_position(CBoard& b)
@@ -33,38 +34,75 @@ void CEngine::set_position(CBoard& b)
 	_b = b;
 }
 
-int CEngine::move_score(const CMove& m, int ply, const boost::optional<STranspositionTableEntry>& tte)
+namespace
 {
-	// killer
-	if (tte)
+	int see(CBoard& b, chess::SQUARES square, chess::SIDE side)
 	{
-		if (tte->mv == m)
-			return 10000;
+		int value = 0;
+
+		CBoard::INT_SQUARES smallestAttacker = b.get_smallest_attacker(side, CBoard::int_index(square));
+
+		if (! CBoard::off_board(smallestAttacker))
+		{
+			const chess::PIECE piece_just_captured = b.piece_at_square(square).piece();
+			CMove mv(CBoard::index(smallestAttacker), square, MOVE_CAPTURE);
+
+			{
+				CBoardMutator mut(b, mv);
+				/* Do not consider captures if they lose material, therefore max zero */
+				value = std::max(0, CHeuristic::piece_value(piece_just_captured) - see(b, square, other_side(side)) );
+			}
+		}
+		return value;
 	}
 
-	if (_pv[ply] == m)
-		return 10000;
+	int see_capture(CBoard& b, const CMove& m)
+	{
+		int value = 0;
+		const chess::PIECE piece = b.piece_at_square(m.from()).piece();
 
-	int s=0;
-	if (m.is_double_push())
-		s+=5;
-	if (m.is_capture())
-	{
-		s+=10;
-	}
-	if (m.is_check())
-		s+=15;
-	if (m.is_promotion())
-		s+=10;
-	const int tofile = m.to() & 7;
-	const int torank = m.to() >> 3;
-	if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
-	{
-		s+=1;
+		{
+			CBoardMutator mut(b, m);
+			value = CHeuristic::piece_value(piece) - see(b, m.to(), b.side_on_move());
+		}
+		return value;
 	}
 
-	return s;
+	int move_score(CBoard& b, const CMove& m, int ply, const boost::optional<STranspositionTableEntry>& tte)
+	{
+		// hash move
+		if (tte)
+		{
+			if (tte->mv == m)
+				return 10000;
+		}
+
+		int s=0;
+		if (m.is_double_push())
+			s+=5;
+		if (m.is_castle())
+			s+=10;
+		if (m.is_capture())
+		{
+			const int static_exch_eval = see_capture(b, m);
+			if (static_exch_eval > 0)
+				s+=20 + static_exch_eval;
+		}
+		if (m.is_check())
+			s+=10;
+		if (m.is_promotion())
+			s+=10;
+		const int tofile = m.to() & 7;
+		const int torank = m.to() >> 3;
+		if ((torank == 3 || torank == 4) && (tofile == 3 || tofile == 4))
+		{
+			s+=1;
+		}
+
+		return s;
+	}
 }
+
 
 void CEngine::Perft(int maxdepth)
 {
@@ -94,81 +132,139 @@ void CEngine::Perft(int maxdepth)
 	_s.WriteLine("done");
 }
 
-//int CEngine::quiescence_negamax(int depth, int alpha, int beta, int color)
-//{
-//}
+int CEngine::quiescence_negamax(int alpha, int beta)
+{
+	int stand_pat_score = CHeuristic(_b).value();
+	if (stand_pat_score >= beta)
+		return beta;
+	if (alpha < stand_pat_score)
+		alpha = stand_pat_score;
+
+	{
+		int score;
+		for (auto & mv : _b.legal_moves_q())
+		{
+			{
+				CBoardMutator mut(_b, mv);
+				score = -quiescence_negamax(-beta, -alpha);
+			}
+			if (score >= beta)
+				return beta;
+			if (score > alpha)
+				alpha = score;
+		}
+	}
+	return alpha;
+}
 
 int CEngine::negamax(int depth, int alpha, int beta, int color)
 {
 	_nodes++;
-	if (depth == 0)
-		return CHeuristic(_b).value();
 
-	auto tte = tt.get_entry(CZobrist(_b.hash()));
+	boost::optional<STranspositionTableEntry> tte = tt.get_entry(_b.hash());
 
 	if (tte)
 	{
 		if (tte->depth >= depth)
 		{
-			return tte->score;
+			_hashhits++;
+			if(tte->nt == NT_Exact) // stored value is exact
+				return tte->value;
+			if(tte->nt == NT_LB && tte->value > alpha) 
+				alpha = tte->value; // update lowerbound alpha if needed
+			else if(tte->nt == NT_UB && tte->value < beta)
+				beta = tte->value; // update upperbound beta if needed
+			if(alpha >= beta)
+				return tte->value; // if lowerbound surpasses upperbound
 		}
 	}
 
-	auto lm = _b.legal_moves();
-	if (lm.size() == 0)
+	if (depth <= 0)
 	{
-		return CHeuristic(_b).value();
+		return quiescence_negamax(alpha, beta);
 	}
-	const int ply = _b.ply();
-	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
+
+	vector<pair<CMove, int>> moves_and_priorities;
+	for (const auto & mv : _b.legal_moves())
 	{
-		return move_score(m1, ply, tte) > move_score(m2, ply, tte);
+		moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _b.ply(), tte)));
+	}
+
+	if (moves_and_priorities.size() == 0)
+	{
+		const int heur = CHeuristic(_b).value();
+	}
+
+	std::sort(moves_and_priorities.begin(), moves_and_priorities.end(), [&](const pair<CMove, int> & m1, const pair<CMove, int> & m2)
+	{
+		return m1.second > m2.second;
 	});
 
-	for (const auto & mv : lm)
+	int n = 1;
+	int best = -10000;
+	int best_move_index = -1;
+	int i = -1;
+	for (const auto & mvp : moves_and_priorities)
 	{
+		i++;
+		const auto & mv = mvp.first;
 		{
 			CBoardMutator mut(_b,mv);
 			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
-			if (val >= beta)
+			if (val >= best)
 			{
-				return val;
+				best = val;
+				best_move_index = i;
 			}
-			if (val > alpha)
+			if (best > alpha)
 			{
-				_pv[_b.ply() - 1] = mv;
-				alpha = val;
+				alpha = best;
 			}
+			if (best >= beta)
+				break;
+
+
 		}
 	}
-
-	return alpha;
+	{
+		NodeType nt;
+		if (best <= alpha)
+		{
+			nt = NT_LB;
+		}
+		else if (best >= beta)
+		{
+			nt = NT_UB;
+		}
+		else
+		{
+			nt = NT_Exact;
+		}
+		tt.store_entry(_b.hash(), STranspositionTableEntry(depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
+	}
+	return best;
 }
 
 CEngine::MoveResult CEngine::negamax_root(int depth)
 {
 	auto tte = tt.get_entry(CZobrist(_b.hash()));
 
-	int alpha = std::numeric_limits<int>::min();
-	int beta = std::numeric_limits<int>::max();
+	int alpha = -10001;
+	int beta = 10001;
 
 	if (tte)
 	{
-		if (tte->depth >= depth)
-		{
-			MoveResult mr;
-			mr.first = tte->score;
-			mr.second = tte->mv;
-			return mr;
-		}
+		// blah
 	}
 
-	auto lm = _b.legal_moves();
-
-	if (lm.size() == 0)
+	vector<pair<CMove, int>> moves_and_priorities;
+	for (const auto & mv : _b.legal_moves())
 	{
-		ASSERT(false);
+		moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _b.ply(), tte)));
 	}
+
+	ASSERT(moves_and_priorities.size());
+
 	const int color = 1;
 
 
@@ -176,22 +272,23 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 
 	const int ply = _b.ply();
 
-	std::sort(lm.begin(), lm.end(), [&](const CMove & m1, const CMove & m2)
+	std::sort(moves_and_priorities.begin(), moves_and_priorities.end(), [&](const pair<CMove, int> & m1, const pair<CMove, int> & m2)
 	{
-		return move_score(m1, ply, tte) > move_score(m2, ply, tte);
+		return m1.second > m2.second;
 	});
 
 	{
 		std::stringstream ss;
-		ss << "Legal moves (" << lm.size() << "): ";
-		for (const auto & mv : lm)
-			ss << mv.longer_algebraic() << " ";
+		ss << "Legal moves (" << moves_and_priorities.size() << "): ";
+		for (const auto & mv : moves_and_priorities)
+			ss << mv.first.longer_algebraic() << " ";
 		_s.WriteLogLine(ss.str());
 	}
 
 	int n = 1;
-	for (const auto & mv : lm)
+	for (const auto & mvp : moves_and_priorities)
 	{
+		const auto & mv = mvp.first;
 		write_current_move(mv.long_algebraic(), n++);
 		{
 			CBoardMutator mut(_b,mv);
@@ -202,26 +299,44 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 			if (val > alpha)
 			{
 				write_best_move(mv.long_algebraic(), val);
-				_pv[_b.ply() - 1] = mv;
 				best = mv;
 				alpha = val;
 			}
 		}
 	}
+	if (best)
 	{
+		CBoardMutator mut(_b, *best);
 		std::stringstream ss;
 		ss << "info pv ";
-		for (auto i = _pv.begin() + _b.ply(); i != _pv.end(); ++i )
+		ss << best->long_algebraic();
+		ss << " ";
+		for (const auto & move : pv())
 		{
-			if (i->to() == chess::SQUARE_LAST &&  i->from() == chess::SQUARE_LAST)
-				break;
-
-			ss << i->long_algebraic();
-			ss << " ";
+			ss << move.long_algebraic() << " ";
 		}
 		_s.WriteLine(ss.str());
 	}
 	return std::make_pair(alpha, *best);
+}
+
+namespace {
+	void get_pv(vector<CMove>& pv, CBoard& b, CTranspositionTable& tt)
+	{
+		auto tte = tt.get_entry(b.hash());
+		if (tte)
+		{
+			pv.push_back(tte->mv);
+			CBoardMutator mut(b, tte->mv);
+			get_pv(pv, b, tt);
+		}
+	}
+}
+std::vector<CMove> CEngine::pv()
+{
+	vector<CMove> vpv;
+	get_pv(vpv, _b, tt);
+	return vpv;
 }
 
 void CEngine::write_current_move(std::string s, int i)
@@ -240,7 +355,7 @@ void CEngine::write_best_move(std::string s, int i)
 
 CMove CEngine::Think()
 {
-	_s.WriteLogLine("Thinking\n" + _b.board());
+	_s.WriteLogLine("Thinking\n" + _b.fen() + "\n" + _b.board());
 	_nodes = 0;
 
 

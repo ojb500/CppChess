@@ -597,6 +597,101 @@ bool CBoard::is_square_attacked(chess::SIDE	attacker, CBoard::INT_SQUARES square
 	return false;
 };
 
+CBoard::INT_SQUARES CBoard::get_smallest_attacker(chess::SIDE attacker, CBoard::INT_SQUARES square) const
+{
+	const auto & diags = _lookups[CPiece(attacker, chess::BISHOP)][square]; // or Q or K
+	const auto & horizs = _lookups[CPiece(attacker, chess::ROOK)][square];  // or Q or K
+	const auto & knights = _lookups[CPiece(attacker, chess::KNIGHT)][square];
+	const int white_pawns[] = { +15, +17 };
+	const int black_pawns[] = { -15, -17 };
+
+	// try pawns
+	for (const auto ray : (attacker == chess::WHITE ? white_pawns : black_pawns))
+	{
+		const auto sq = INT_SQUARES(square + ray);
+		const auto piece = _board[sq];
+		if (piece.side() == attacker && piece.piece() == chess::PAWN)
+			return sq;
+	}
+
+	// try knights
+	for (const auto & ray : knights)
+	{
+		for (const auto sq : ray)
+		{
+			const auto piece = _board[sq];
+			if (!piece)
+				continue;
+			if (piece.side() == attacker && 
+				piece.piece() == chess::KNIGHT)
+			{
+				return sq;
+			}
+		}
+	}
+
+	// check diagonals. Now we might find a queen here.
+	// If we do we can't be sure yet that there isn't a rook on the horizontal (or indeed a bishop on another diagonal)
+
+	chess::PIECE smallest = chess::KING;
+	INT_SQUARES smallest_sq = XA1;
+	for (const auto & ray : diags)
+	{
+		int ray_distance = 0;
+		for (const auto sq : ray)
+		{
+			ray_distance++;
+			const auto piece = _board[sq];
+			if (!piece)
+				continue;
+
+			if (piece.side() == attacker && 
+				((piece.piece() == chess::BISHOP || piece.piece() == chess::QUEEN)
+				|| (piece.piece() == chess::KING && ray_distance == 1)))
+			{
+				if (piece.piece() == chess::BISHOP)
+					return sq; // a little optimisation - if we've found a bishop at this point it must be the smallest
+
+				if (piece.piece() <= smallest)
+				{
+					smallest_sq = sq;
+					smallest = std::min(smallest, piece.piece());
+				}
+			}
+
+			break;
+		}
+	}
+
+	for (const auto & ray : horizs)
+	{
+		int ray_distance = 0;
+		for (const auto sq : ray)
+		{
+			ray_distance++;
+			const auto piece = _board[sq];
+			if (! piece)
+				continue;
+			if (piece.side() == attacker && 
+				((piece.piece() == chess::ROOK || piece.piece() == chess::QUEEN)
+				|| (piece.piece() == chess::KING && ray_distance == 1)))
+			{
+				if (piece.piece() == chess::ROOK)
+					return sq; // a little optimisation - if we've found a rook at this point it must be the smallest
+
+				if (piece.piece() <= smallest)
+				{
+					smallest_sq = sq;
+					smallest = std::min(smallest, piece.piece());
+				}
+			}
+			break;
+		}
+	}
+
+	return smallest_sq;
+};
+
 int CBoard::ply() const
 {
 	return _halfmoves;
@@ -678,6 +773,18 @@ void CBoard::try_add_castling_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 		return;
 
 	try_add_move(b, v, mv);
+}
+
+std::vector<CMove> CBoard::legal_moves_q() 
+{
+	// TODO Improve vastly
+	auto lm = legal_moves();
+	std::vector<CMove> qlm;
+	std::copy_if(lm.begin(), lm.end(), std::back_inserter(qlm), [&](const CMove& mv)
+	{
+		return (mv.is_capture() || mv.is_promotion());
+	});
+	return qlm;
 }
 
 std::vector<CMove> CBoard::legal_moves() 
@@ -841,6 +948,11 @@ CPiece CBoard::piece_at_square(chess::SQUARES sq) const
 	return _board[int_index(sq)];
 };
 
+CPiece CBoard::piece_at_square(INT_SQUARES sq) const 
+{
+	return _board[sq];
+};
+
 std::string CBoard::san_name(CMove m) const 
 {
 	return std::string();
@@ -862,7 +974,7 @@ void CBoard::clear_board()
 
 void CBoard::set_fen_position(std::string fen)
 {
-
+	boost::algorithm::trim(fen);
 	if (fen == "1")
 	{
 		set_fen_position("2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPKPP1/RNB2r2 w KQkq - 0 1");
@@ -1082,7 +1194,7 @@ std::string CBoard::board() const
 	return ss.str();
 };
 
-uint64_t CBoard::hash() const 
+CZobrist CBoard::hash() const 
 {
-	return _hash.Hash();
+	return _hash;
 };

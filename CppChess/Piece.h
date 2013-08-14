@@ -23,6 +23,12 @@ namespace chess
 		PIECE_LAST = KING,
 	};
 }
+
+inline chess::SIDE other_side(chess::SIDE s)
+{
+	return static_cast<chess::SIDE>(!s);
+}
+
 inline chess::PIECE operator++(chess::PIECE p)
 {return static_cast<chess::PIECE>(static_cast<int>(p) + 1);}
 

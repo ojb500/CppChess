@@ -9,6 +9,11 @@ CHeuristic::CHeuristic(CBoard& b)
 
 CHeuristicParameters CHeuristic::params = CHeuristicParameters();
 
+/*s*/ int CHeuristic::piece_value(chess::PIECE piece)
+{
+	return params.get_value(piece);
+}
+
 int CHeuristic::value()
 {
 	auto lm = b.legal_moves();
@@ -31,14 +36,14 @@ int CHeuristic::value()
 	int mat_count = 0;
 	for (int side=0; side<2; side++)
 	{
+		int mult = side == b.side_on_move() ? 1 : -1;
 		for (int piece=1; piece<7; piece++)
 		{
-			const CPiece p(side == 0 ? chess::WHITE : chess::BLACK, chess::PIECE(piece));
+			const CPiece p = CPiece(chess::SIDE(side), chess::PIECE(piece));
 			const auto & pc = b.piece_table()[p];
 
-			int mult = (p.side() == b.side_on_move() ? 1 : -1);
 			for (auto sq : pc)
-				mat_count += params.GetValue(p, CBoard::index(sq)) * mult;
+				mat_count += params.get_value(p, CBoard::index(sq)) * mult;
 			// 2 bishop bonus
 			if (p.piece() == chess::BISHOP && pc.size() > 1)
 			{
@@ -51,10 +56,10 @@ int CHeuristic::value()
 	// central control todo
 
 	// mobility
-	int mobility = lm.size();
+//int mobility = lm.size();
 
 	//TODO
-	return (mobility / 2) + mat_count;
+	return mat_count;
 
 }
 

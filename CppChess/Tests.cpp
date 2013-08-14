@@ -174,16 +174,28 @@ namespace
 		}
 	}
 
-	void PerftTests()
+	void MoveOrderTests()
 	{
+		{
+			CBoard b;
+			b.set_fen_position("r2q1rk1/pp2pppp/2p5/1n1p1b2/8/3Q4/PPP2PPP/RN3RK1 w - - 0 1");
+			cout << b.board();
+
+			CUciSession s(cin, cout, cout);
+			CEngine e(s);
+			e.set_position(b);
+			auto think = e.Think();
+			cout << think.long_algebraic() << endl;
+		}
 	}
 }
 
 CTests::CTests(void)
 {
-	EngineTests();
+	//
+	MoveOrderTests();
 	MoveGenTests();
-	PerftTests();
+	EngineTests();
 
 	cout << "ran " << s_testsRun << " tests of which " << s_testsFailed << " failed" << endl;
 }

@@ -14,6 +14,8 @@ public:
 
 	typedef std::pair<int, CMove> MoveResult;
 
+	std::vector<CMove> pv();
+
 private:
 	MoveResult negamax_root(int depth);
 	int negamax(int depth, int alpha, int beta, int color);
@@ -23,16 +25,13 @@ private:
 
 	CTranspositionTable tt;
 
-	int move_score(const CMove& m, int ply, const boost::optional<STranspositionTableEntry> & tte);
-
 	void write_current_move(std::string, int);
 	void write_best_move(std::string, int);
 
 	
 
-	int _nodes;
-
-	std::vector<CMove> _pv;
+	uint64_t _nodes;
+	uint64_t _hashhits;
 	
 	CUciSession & _s;
 	CBoard _b;

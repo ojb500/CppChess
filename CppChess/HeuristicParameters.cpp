@@ -47,7 +47,12 @@ CHeuristicParameters::CHeuristicParameters(void)
 	}
 }
 
-int CHeuristicParameters::GetValue(CPiece piece, chess::SQUARES sq)
+int CHeuristicParameters::get_value(chess::PIECE piece)
+{
+	return _base_values[piece];
+}
+
+int CHeuristicParameters::get_value(CPiece piece, chess::SQUARES sq)
 {
 	if (!piece)
 		return 0;

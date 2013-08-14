@@ -3,6 +3,7 @@
 #include "Board.h"
 #include "Engine.h"
 #include "Perft.h"
+#include "PerftSuite.h"
 #include <time.h>
 #include "Tests.h"
 
@@ -139,6 +140,11 @@ void CUciSession::listen()
 				++j;
 			}
 			e->Perft(maxdepth);
+		}
+		else if (*j == "perftsuite")
+		{
+			CPerftSuite ps;
+			WriteLine("completed");
 		}
 		else if (*j == "divide")
 		{

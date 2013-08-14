@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/optional.hpp>
+#include <unordered_map>
 #include "Zobrist.h"
 #include "Move.h"
 
@@ -14,8 +15,16 @@ struct STranspositionTableEntry
 {
 	int depth;
 	CMove mv;
-	int score;
+	int value;
 	NodeType nt;
+	
+	STranspositionTableEntry(int d, CMove mv, int val, NodeType nt)
+		: depth(d)
+		, mv(mv)
+		, value(val)
+		, nt(nt)
+	{}
+
 };
 
 class CTranspositionTable
@@ -28,6 +37,6 @@ public:
 	void store_entry(CZobrist zob, STranspositionTableEntry tte);
 
 private:
-	std::map<uint64_t, STranspositionTableEntry> _map;
+	std::unordered_map<uint64_t, STranspositionTableEntry> _map;
 };
 

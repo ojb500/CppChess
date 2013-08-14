@@ -8,6 +8,7 @@ public:
 	CHeuristic(CBoard& b);
 	
 	int value();
+	static int piece_value(chess::PIECE piece);
 
 	~CHeuristic(void);
 

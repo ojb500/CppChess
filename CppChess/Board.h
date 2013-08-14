@@ -20,12 +20,13 @@ public:
 	virtual chess::SIDE side_on_move() const = 0;
 
 	virtual std::vector<CMove> legal_moves() = 0;
+	virtual std::vector<CMove> legal_moves_q() = 0;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const = 0;
 	virtual std::string san_name(CMove m) const = 0;
 
 	virtual std::string fen() const = 0;
 
-	virtual uint64_t hash() const = 0;
+	virtual CZobrist hash() const = 0;
 };
 
 class CBoard: public CBoardInterface
@@ -126,7 +127,9 @@ public:
 	virtual chess::SIDE side_on_move() const override;
 	void set_side_on_move(chess::SIDE side);
 	virtual std::vector<CMove> legal_moves() override;
+	virtual std::vector<CMove> legal_moves_q() override;
 	virtual CPiece piece_at_square(chess::SQUARES sq) const override;
+	CPiece piece_at_square(INT_SQUARES sq) const;
 	virtual std::string san_name(CMove m) const override;
 
 	int ply() const;
@@ -139,7 +142,7 @@ public:
 
 	void set_fen_position(std::string);
 
-	virtual uint64_t hash() const override;
+	virtual CZobrist hash() const override;
 
 	CBoard();
 
@@ -163,14 +166,15 @@ public:
 		return (sq & 0x88) != 0;
 	}
 
+	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
+	CBoard::INT_SQUARES get_smallest_attacker(chess::SIDE attacker, INT_SQUARES sq) const;
+
 private:
 	CPiece _board[128];
 	PieceTable _pieces;
 
 	bool is_occupied(INT_SQUARES sq) const;
 	typedef std::map<short, std::vector<std::vector<std::vector<INT_SQUARES>>>> LookupTables;
-
-	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 
 	CZobrist hash_from_scratch() const;
 
