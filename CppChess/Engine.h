@@ -5,8 +5,15 @@
 class CEngine
 {
 public:
+	typedef std::chrono::duration<int,std::milli> millisecs_t ;
+
 	CEngine(CUciSession & s);
-	CMove Think();	
+	
+	CMove Think();
+
+	CMove IterativeDeepening(millisecs_t timePerMove);
+
+
 	void Perft(int depth);
 	~CEngine(void);
 
@@ -14,14 +21,16 @@ public:
 
 	typedef std::pair<int, CMove> MoveResult;
 
+	void cancel();
+
 	std::vector<CMove> pv();
 
 private:
+	volatile bool _cancelled;
+
 	MoveResult negamax_root(int depth);
 	int negamax(int depth, int alpha, int beta, int color);
 	int quiescence_negamax(int alpha, int beta);
-
-	typedef std::chrono::duration<int,std::milli> millisecs_t ;
 
 	CTranspositionTable tt;
 

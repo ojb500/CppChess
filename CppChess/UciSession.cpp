@@ -164,7 +164,7 @@ void CUciSession::listen()
 		}
 		else if (*j == "go")
 		{
-			auto m = e->Think();
+			auto m = e->IterativeDeepening(CEngine::millisecs_t(15000));
 
 			WriteLine("bestmove " + m.long_algebraic());
 			// TODO do stuff with engine

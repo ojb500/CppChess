@@ -24,7 +24,8 @@ namespace
 };
 
 CEngine::CEngine(CUciSession & us)
-	: _s(us)
+	: _cancelled(false)
+	, _s(us)
 	, _nodes(0)
 {
 }
@@ -273,7 +274,8 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 	const int color = 1;
 
 
-	boost::optional<CMove> best;
+	int best = -10001;
+	boost::optional<CMove> best_move;
 
 	const int ply = _b.ply();
 
@@ -304,30 +306,49 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 			if (val > alpha)
 			{
 				write_best_move(mv.long_algebraic(), val);
-				best = mv;
+				best = val;
+				best_move = mv;
 				alpha = val;
 			}
 		}
 	}
-	if (best)
+
 	{
-		CBoardMutator mut(_b, *best);
+		NodeType nt;
+		if (best <= alpha)
+		{
+			nt = NT_LB;
+		}
+		else if (best >= beta)
+		{
+			nt = NT_UB;
+		}
+		else
+		{
+			nt = NT_Exact;
+		}
+		tt.store_entry(_b.hash(), STranspositionTableEntry(depth, *best_move, best, nt));
+	}
+
+	if (best_move)
+	{
 		std::stringstream ss;
 		ss << "info pv ";
-		ss << best->long_algebraic();
-		ss << " ";
 		for (const auto & move : pv())
 		{
 			ss << move.long_algebraic() << " ";
 		}
 		_s.WriteLine(ss.str());
 	}
-	return std::make_pair(alpha, *best);
+	return std::make_pair(alpha, *best_move);
 }
 
 namespace {
 	void get_pv(vector<CMove>& pv, CBoard& b, CTranspositionTable& tt)
 	{
+		if (pv.size() >= 20)
+			return;
+
 		auto maybeTte = tt.get_entry(b.hash());
 		if (maybeTte)
 		{
@@ -389,6 +410,49 @@ CMove CEngine::Think()
 	return mr.second;
 }
 
+CMove CEngine::IterativeDeepening(millisecs_t timePerMove)
+{
+	{
+		std::stringstream ss;
+		ss << "Using iterative deepening with " << timePerMove.count() << "ms thinking time\n";
+		ss << _b.fen() << "\n" << _b.board();
+		_s.WriteLogLine(ss.str());
+	}
+
+	_nodes = 0;
+	_qnodes = 0;
+
+	MoveResult mr;
+	std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
+	for (int depth = 1; ; ++depth)
+	{
+		mr = negamax_root(depth);
+		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now() ;
+		millisecs_t duration( std::chrono::duration_cast<millisecs_t>(now-start) ) ;
+		std::stringstream ss;
+		ss << "info depth " << depth << " nodes " << _nodes << " nps " << int(_nodes / (duration.count() / 1000.0)) << " pv ";
+		for (const auto mv : pv())
+		{
+			ss << mv.long_algebraic() << " ";
+		}
+		_s.WriteLine(ss.str());
+		if ( _cancelled || duration > timePerMove )
+			break;
+	}
+
+
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now() ;
+	millisecs_t duration( std::chrono::duration_cast<millisecs_t>(now-start) ) ;
+	
+	{
+		std::stringstream ss;
+		ss << int(_nodes / (duration.count() / 1000.0)) << " nps, " << duration.count() << " msec";
+		ss << _nodes << " nodes, " << _qnodes << " qnodes";
+		_s.WriteLogLine(ss.str());
+	}
+
+	return mr.second;
+}
 
 CEngine::~CEngine(void)
 {
