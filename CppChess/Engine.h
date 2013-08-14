@@ -31,6 +31,7 @@ private:
 	
 
 	uint64_t _nodes;
+	uint64_t _qnodes;
 	uint64_t _hashhits;
 	
 	CUciSession & _s;

@@ -134,7 +134,8 @@ void CEngine::Perft(int maxdepth)
 
 int CEngine::quiescence_negamax(int alpha, int beta)
 {
-	int stand_pat_score = CHeuristic(_b).value();
+	_qnodes++;
+	int stand_pat_score = CHeuristic(_b).nonterminal_value();
 	if (stand_pat_score >= beta)
 		return beta;
 	if (alpha < stand_pat_score)
@@ -144,10 +145,14 @@ int CEngine::quiescence_negamax(int alpha, int beta)
 		int score;
 		for (auto & mv : _b.legal_moves_q())
 		{
+			if (mv.is_capture() && !see_capture(_b, mv))
+				continue;
+
 			{
 				CBoardMutator mut(_b, mv);
 				score = -quiescence_negamax(-beta, -alpha);
 			}
+
 			if (score >= beta)
 				return beta;
 			if (score > alpha)
@@ -323,12 +328,17 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 namespace {
 	void get_pv(vector<CMove>& pv, CBoard& b, CTranspositionTable& tt)
 	{
-		auto tte = tt.get_entry(b.hash());
-		if (tte)
+		auto maybeTte = tt.get_entry(b.hash());
+		if (maybeTte)
 		{
-			pv.push_back(tte->mv);
-			CBoardMutator mut(b, tte->mv);
-			get_pv(pv, b, tt);
+			auto tte = *maybeTte;
+			if (tte.mv.to() != tte.mv.from())
+			{
+				auto tte = *maybeTte;
+				pv.push_back(tte.mv);
+				CBoardMutator mut(b, tte.mv);
+				get_pv(pv, b, tt);
+			}
 		}
 	}
 }
@@ -357,6 +367,7 @@ CMove CEngine::Think()
 {
 	_s.WriteLogLine("Thinking\n" + _b.fen() + "\n" + _b.board());
 	_nodes = 0;
+	_qnodes = 0;
 
 
 
@@ -372,6 +383,7 @@ CMove CEngine::Think()
 
 	std::stringstream ss;
 	ss << (_nodes / (duration.count())) * 1000 << " nps, " << duration.count() << " msec";
+	ss << _nodes << " nodes, " << _qnodes << " qnodes";
 	_s.WriteLogLine(ss.str());
 
 	return mr.second;

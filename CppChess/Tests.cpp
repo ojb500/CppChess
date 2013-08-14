@@ -61,21 +61,21 @@ namespace
 {
 	void EngineTests()
 	{
-		{// win the queen
-			CBoard b;
-			CUciSession s(cin, cout, cout);
-			CEngine e(s);
-			b.set_fen_position("8/4Q3/8/8/4K3/8/1q6/5k2 b - - 0 1");
-			e.set_position(b);
-			auto think = e.Think();
-			cout << think.long_algebraic() << endl;
-			
-		}
 		{// easy mate in 1
 			CBoard b;
 			CUciSession s(cin, cout, cout);
 			CEngine e(s);
 			b.set_fen_position("8/8/8/8/8/8/6PP/2r1k2K b - - 0 1");
+			e.set_position(b);
+			auto think = e.Think();
+			cout << think.long_algebraic() << endl;
+			
+		}
+		{// win the queen
+			CBoard b;
+			CUciSession s(cin, cout, cout);
+			CEngine e(s);
+			b.set_fen_position("8/4Q3/8/8/4K3/8/1q6/5k2 b - - 0 1");
 			e.set_position(b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
@@ -193,9 +193,10 @@ namespace
 CTests::CTests(void)
 {
 	//
+	EngineTests();
 	MoveOrderTests();
 	MoveGenTests();
-	EngineTests();
+	
 
 	cout << "ran " << s_testsRun << " tests of which " << s_testsFailed << " failed" << endl;
 }
