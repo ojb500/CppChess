@@ -38,6 +38,7 @@ CPerft::SPerftResult CPerft::DoPerft(int depth)
 		res.nodes = moves.size();
 		return res;
 	}
+
 	for (const auto & move : moves)
 	{
 		{
