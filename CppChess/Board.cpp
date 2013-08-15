@@ -778,7 +778,7 @@ void CBoard::try_add_castling_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 std::vector<CMove> CBoard::legal_moves_q() 
 {
 	std::vector<CMove> v;
-	v.reserve(40);
+	v.reserve(100);
 	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
 	const chess::CASTLING_RIGHTS my_castling = 
 		chess::CASTLING_RIGHTS(_castling &
@@ -922,7 +922,7 @@ std::vector<CMove> CBoard::legal_moves_q()
 std::vector<CMove> CBoard::legal_moves() 
 {
 	std::vector<CMove> v;
-	v.reserve(40);
+	v.reserve(100);
 	const chess::SIDE the_other_side = other_side(_side);
 	const chess::CASTLING_RIGHTS my_castling = 
 		chess::CASTLING_RIGHTS(_castling &

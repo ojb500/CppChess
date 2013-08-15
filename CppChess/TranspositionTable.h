@@ -13,20 +13,23 @@ enum NodeType
 
 struct STranspositionTableEntry
 {
+	CZobrist zob;
 	int depth;
 	CMove mv;
 	int value;
 	NodeType nt;
 	
 	STranspositionTableEntry()
-		: depth(-1)
+		: zob(0)
+		, depth(-1)
 		, mv()
 		, value(-9999)
 		, nt(NT_LB)
 	{}
 
-	STranspositionTableEntry(int d, CMove mv, int val, NodeType nt)
-		: depth(d)
+	STranspositionTableEntry(CZobrist zob, int d, CMove mv, int val, NodeType nt)
+		: zob(zob)
+		, depth(d)
 		, mv(mv)
 		, value(val)
 		, nt(nt)
@@ -37,17 +40,17 @@ struct STranspositionTableEntry
 class CTranspositionTable
 {
 public:
-	const static size_t MAX_SIZE = 1024000;
+	const static size_t MAX_SIZE = 0x100000;
 
 	CTranspositionTable(void);
 	~CTranspositionTable(void);
 
-	boost::optional<STranspositionTableEntry> get_entry(CZobrist zob)const;
-	void store_entry(CZobrist zob, STranspositionTableEntry tte);
+	boost::optional<STranspositionTableEntry> get_entry(const CZobrist zob)const;
+	void store_entry(STranspositionTableEntry tte);
 
 	int permill_full()const;
 
 private:
-	std::unordered_map<uint64_t, STranspositionTableEntry> _map;
+	std::vector<STranspositionTableEntry> _table;
 };
 

@@ -23,6 +23,7 @@ public:
 
 	void cancel();
 
+	void output_pv();
 	std::vector<CMove> pv();
 
 private:

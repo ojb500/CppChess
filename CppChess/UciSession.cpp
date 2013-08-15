@@ -53,7 +53,6 @@ void CUciSession::listen()
 	string s;
 	CBoard b;
 	std::shared_ptr<CEngine> e = make_shared<CEngine>(*this);
-
 	while (getline(_i, s, '\n'))
 	{
 
@@ -164,7 +163,25 @@ void CUciSession::listen()
 		}
 		else if (*j == "go")
 		{
-			auto m = e->IterativeDeepening(CEngine::millisecs_t(15000));
+			// read the rest of the parameters (if any)
+			map<std::string, int> params;
+			while (!j.at_end())
+			{
+				j++;
+				// read eval parameters
+				if (!j.at_end())
+				{
+					const std::string paramName = *j;
+					j++;
+					if (!j.at_end())
+					{
+						const int value = boost::lexical_cast<int>(*j);
+						params[paramName] = value;
+					}
+				}
+			}
+
+			auto m = e->IterativeDeepening(CEngine::millisecs_t(10000));
 
 			WriteLine("bestmove " + m.long_algebraic());
 			// TODO do stuff with engine

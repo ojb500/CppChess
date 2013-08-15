@@ -21,6 +21,24 @@ namespace
 		}
 		return eval;
 	}
+
+	std::string uci_format_score(int score)
+	{
+		std::stringstream ss;
+		if (score >= 9900 || score <= -9900)
+		{
+			ss << "mate ";
+			int in_ply = 10000 - abs(score);
+			int mating_or_mated = (score > 0 ? 1 : -1);
+			ss << (1 + (in_ply / 2)) * mating_or_mated;
+		}
+		else
+		{
+			ss << "cp ";
+			ss << score;
+		}
+		return ss.str();
+	}
 };
 
 CEngine::CEngine(CUciSession & us)
@@ -246,7 +264,7 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 		{
 			nt = NT_Exact;
 		}
-		tt.store_entry(_b.hash(), STranspositionTableEntry(depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
+		tt.store_entry(STranspositionTableEntry(_b.hash(), depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
 	}
 	return best;
 }
@@ -327,19 +345,11 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		{
 			nt = NT_Exact;
 		}
-		tt.store_entry(_b.hash(), STranspositionTableEntry(depth, *best_move, best, nt));
+		tt.store_entry(STranspositionTableEntry(_b.hash(), depth, *best_move, best, nt));
 	}
 
-	if (best_move)
-	{
-		std::stringstream ss;
-		ss << "info pv ";
-		for (const auto & move : pv())
-		{
-			ss << move.long_algebraic() << " ";
-		}
-		_s.WriteLine(ss.str());
-	}
+//	output_pv();
+
 	return std::make_pair(alpha, *best_move);
 }
 
@@ -353,7 +363,7 @@ namespace {
 		if (maybeTte)
 		{
 			auto tte = *maybeTte;
-			if (tte.mv.to() != tte.mv.from())
+			if (tte.mv.to() != tte.mv.from() && tte.nt == NT_Exact)
 			{
 				auto tte = *maybeTte;
 				pv.push_back(tte.mv);
@@ -362,6 +372,16 @@ namespace {
 			}
 		}
 	}
+}
+void CEngine::output_pv()
+{
+	std::stringstream ss;
+	ss << "info pv ";
+	for (const auto & move : pv())
+	{
+		ss << move.long_algebraic() << " ";
+	}
+	_s.WriteLine(ss.str());
 }
 std::vector<CMove> CEngine::pv()
 {
@@ -424,13 +444,19 @@ CMove CEngine::IterativeDeepening(millisecs_t timePerMove)
 
 	MoveResult mr;
 	std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now() ;
-	for (int depth = 1; ; ++depth)
+	for (int depth = 2; ; ++depth)
 	{
 		mr = negamax_root(depth);
 		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now() ;
 		millisecs_t duration( std::chrono::duration_cast<millisecs_t>(now-start) ) ;
 		std::stringstream ss;
-		ss << "info depth " << depth << " nodes " << _nodes << " nps " << int(_nodes / (duration.count() / 1000.0)) << " pv ";
+		ss	<< "info score " << uci_format_score(mr.first) 
+			<< " depth " << depth 
+			<< " time " << duration.count() 
+			<< " nodes " << _nodes 
+			<< " nps " << int(_nodes / (duration.count() / 1000.0)) 
+			<< " hashfull " << tt.permill_full() 
+			<< " pv ";
 		for (const auto mv : pv())
 		{
 			ss << mv.long_algebraic() << " ";
@@ -443,7 +469,7 @@ CMove CEngine::IterativeDeepening(millisecs_t timePerMove)
 
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now() ;
 	millisecs_t duration( std::chrono::duration_cast<millisecs_t>(now-start) ) ;
-	
+
 	{
 		std::stringstream ss;
 		ss << int(_nodes / (duration.count() / 1000.0)) << " nps, " << duration.count() << " msec";

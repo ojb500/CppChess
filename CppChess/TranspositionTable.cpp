@@ -2,26 +2,35 @@
 #include "TranspositionTable.h"
 
 CTranspositionTable::CTranspositionTable(void)
+	: _table(MAX_SIZE)
 {
 }
 
-boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(CZobrist zob)const
+namespace 
 {
-	auto mi = _map.find(zob.Hash());
-	if (mi != _map.end())
-		return mi->second;
+	int IndexFromZob(const CZobrist zob)
+	{
+		return zob.Hash() & 0xFFFFF;
+	}
+}
+
+boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(const CZobrist zob)const
+{
+	boost::optional<STranspositionTableEntry> tte = _table[IndexFromZob(zob)];
+	if (tte->depth > -1 && tte->zob == zob)
+		return tte;
 	return boost::none;
 }
 
-void CTranspositionTable::store_entry(CZobrist zob, STranspositionTableEntry tte)
+void CTranspositionTable::store_entry(STranspositionTableEntry tte)
 {
 	if (tte.depth > 0)
-		_map[zob.Hash()] = tte;
+		_table[IndexFromZob(tte.zob)] = tte;
 }
 
 int CTranspositionTable::permill_full()const
 {
-	return _map.size() / (CTranspositionTable::MAX_SIZE / 1000);
+	return 0;
 }
 
 CTranspositionTable::~CTranspositionTable(void)

@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "Heuristic.h"
 
+namespace
+{
+	const int contempt = -20;
+	const int on_move = 5;
+}
 
 CHeuristic::CHeuristic(CBoard& b)
 	: b(b)
@@ -43,7 +48,7 @@ int CHeuristic::nonterminal_value()
 	//int mobility = lm.size();
 
 	//TODO
-	return mat_count;
+	return mat_count + on_move;
 }
 int CHeuristic::value()
 {
@@ -59,7 +64,7 @@ int CHeuristic::value()
 		}
 		else
 		{
-			return 0; // drawn position
+			return -contempt; // drawn position
 		}
 	}
 
