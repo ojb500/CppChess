@@ -348,7 +348,7 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		tt.store_entry(STranspositionTableEntry(_b.hash(), depth, *best_move, best, nt));
 	}
 
-//	output_pv();
+	//	output_pv();
 
 	return std::make_pair(alpha, *best_move);
 }
@@ -456,10 +456,14 @@ CMove CEngine::IterativeDeepening(millisecs_t timePerMove)
 			<< " nodes " << _nodes 
 			<< " nps " << int(_nodes / (duration.count() / 1000.0)) 
 			<< " hashfull " << tt.permill_full() 
-			<< " pv ";
-		for (const auto mv : pv())
+			<< " pv "
+			<< mr.second.long_algebraic();
 		{
-			ss << mv.long_algebraic() << " ";
+			CBoardMutator mut(_b, mr.second);
+			for (const auto mv : pv())
+			{
+				ss << mv.long_algebraic() << " ";
+			}
 		}
 		_s.WriteLine(ss.str());
 		if ( _cancelled || duration > timePerMove )

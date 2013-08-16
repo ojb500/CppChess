@@ -19,6 +19,9 @@
     <Text Include="Params.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="BratkoKopec.epd.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -72,6 +75,9 @@
     <ClInclude Include="PerftSuite.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="BratkoKopec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -114,6 +120,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PerftSuite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BratkoKopec.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -72,7 +72,7 @@ public:
 		return side() == chess::WHITE ? white_pieces[piece()] : black_pieces[piece()];
 	}
 
-	operator short() const
+	operator unsigned short() const
 	{
 		return _b;
 	};
@@ -93,7 +93,7 @@ public:
 	};
 
 private:
-	short _b;
+	unsigned short _b;
 };
 
 struct less_piece

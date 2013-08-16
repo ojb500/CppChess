@@ -4,6 +4,7 @@
 #include "Engine.h"
 #include "Perft.h"
 #include "PerftSuite.h"
+#include "BratkoKopec.h"
 #include <time.h>
 #include "Tests.h"
 
@@ -139,6 +140,11 @@ void CUciSession::listen()
 				++j;
 			}
 			e->Perft(maxdepth);
+		}
+		else if (*j == "bk")
+		{
+			CBratkoKopec ps;
+			WriteLine("completed");
 		}
 		else if (*j == "perftsuite")
 		{

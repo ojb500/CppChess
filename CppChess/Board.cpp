@@ -174,6 +174,8 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 	const CPiece moved = _board[from];
 
+	ASSERT(moved);
+
 	mem.cr = _castling;
 	if (_castling != chess::CR_NONE)
 	{
@@ -237,7 +239,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 	mem.ep = _en_passant_square;
 	_en_passant_square = XA1;
-	if (mv.is_normal_move())
+	if (mv.is_normal_move() || mv.is_double_push())
 	{
 		if (mv.is_capture())
 		{
@@ -401,18 +403,49 @@ void CBoard::unmake_move(CMemento m)
 	_en_passant_square = m.ep;
 	_castling = m.cr;
 
-	if (m.move.is_normal_move())
+	if (m.move.is_normal_move() || m.move.is_capture() || m.move.is_double_push())
 	{
-		_board[from] = moved;
-		_board[to] = m.captured;
-
-		if (m.captured.piece() != chess::NOTHING)
+		if (m.move.is_en_passant_capture())
 		{
-			_pieces[m.captured].insert(to);
-		}
+			// 4 . p P . . . After 1. Pc2-c4 
+			// 3 . . . . . .
+			// 2 . . . . . .
+			// 1 . . . . . .
+			//   a b c d e f
 
-		_pieces[moved].erase(to);
-		_pieces[moved].insert(from);
+			// 4 . . . . . . black can play 1...b4xc3 
+			// 3 . . p . . .
+			// 2 . . . . . .
+			// 1 . . . . . .
+			//   a b c d e f
+
+			// We need to replace the pawn on the square behind (-16 for white, +16 for black)
+			// the 'to' square
+			const INT_SQUARES en_passant_taken_square = INT_SQUARES(to - (_side == chess::WHITE ? -16 : +16));
+			const CPiece taken_piece = CPiece(other_side, chess::PAWN);
+
+			_pieces[taken_piece].insert(en_passant_taken_square);
+			_board[en_passant_taken_square] = taken_piece;
+
+			_board[from] = moved;
+			_board[to] = CPiece();
+
+			_pieces[moved].insert(from);
+			_pieces[moved].erase(to);
+		}
+		else
+		{
+			_board[from] = moved;
+			_board[to] = m.captured;
+
+			if (m.captured.piece() != chess::NOTHING)
+			{
+				_pieces[m.captured].insert(to);
+			}
+
+			_pieces[moved].erase(to);
+			_pieces[moved].insert(from);
+		}
 	}
 	else if (m.move.is_promotion())
 	{
@@ -427,34 +460,6 @@ void CBoard::unmake_move(CMemento m)
 		_pieces[promoted].erase(to);
 		_pieces[pawn].insert(from);
 		_board[from] = pawn;
-	}
-	else if (m.move.is_en_passant_capture())
-	{
-		// 4 . p P . . . After 1. Pc2-c4 
-		// 3 . . . . . .
-		// 2 . . . . . .
-		// 1 . . . . . .
-		//   a b c d e f
-
-		// 4 . . . . . . black can play 1...b4xc3 
-		// 3 . . p . . .
-		// 2 . . . . . .
-		// 1 . . . . . .
-		//   a b c d e f
-
-		// We need to replace the pawn on the square behind (-16 for white, +16 for black)
-		// the 'to' square
-		const INT_SQUARES en_passant_taken_square = INT_SQUARES(to - (_side == chess::WHITE ? -16 : +16));
-		const CPiece taken_piece = CPiece(other_side, chess::PAWN);
-
-		_pieces[taken_piece].insert(en_passant_taken_square);
-		_board[en_passant_taken_square] = taken_piece;
-
-		_board[from] = moved;
-		_board[to] = CPiece();
-
-		_pieces[moved].insert(from);
-		_pieces[moved].erase(to);
 	}
 	else if (m.move.is_castle())
 	{
@@ -732,10 +737,10 @@ void CBoard::try_add_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 	}
 	else
 	{
-		if (b.is_check())
-		{
-			mv.set_flag(MOVE_CHECK);
-		}
+		//if (b.is_check())
+		//{
+		//	mv.set_flag(MOVE_CHECK); TODO
+		//}
 		v.push_back(mv);
 	}
 }
@@ -778,7 +783,7 @@ void CBoard::try_add_castling_move(CBoard & b, std::vector<CMove> & v, CMove mv)
 std::vector<CMove> CBoard::legal_moves_q() 
 {
 	std::vector<CMove> v;
-	v.reserve(100);
+	v.reserve(20);
 	const chess::SIDE other_side = (_side == chess::WHITE ? chess::BLACK : chess::WHITE);
 	const chess::CASTLING_RIGHTS my_castling = 
 		chess::CASTLING_RIGHTS(_castling &

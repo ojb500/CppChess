@@ -193,9 +193,9 @@ namespace
 CTests::CTests(void)
 {
 	//
+	MoveGenTests();
 	EngineTests();
 	MoveOrderTests();
-	MoveGenTests();
 	
 
 	cout << "ran " << s_testsRun << " tests of which " << s_testsFailed << " failed" << endl;

@@ -9,6 +9,8 @@ using namespace std;
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_EVERY_1024_DF);
+
 	ofstream logfile;
 	logfile.open("session.log", ofstream::out | ofstream::trunc);
 	if (logfile.fail())

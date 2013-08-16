@@ -5,13 +5,20 @@
 enum MOVE_FLAGS
 {
 	MOVE_NONE		= 0,
-	MOVE_OO			= 1,
-	MOVE_OOO		= 2,
-	MOVE_CHECK		= 4,
-	MOVE_CAPTURE	= 8,
-	MOVE_PROMOTION  = 16, //  a b c d e f g h	
-	MOVE_EN_PASSANT	= 32,
-	MOVE_DBL_PUSH   = 64,
+	MOVE_DBL_PUSH   = 1,
+	MOVE_OO			= 2,
+	MOVE_OOO		= 3,
+	MOVE_CAPTURE	= 4,
+	MOVE_EN_PASSANT	= 5,
+	MOVE_PROMOTE_N  = 8,
+	MOVE_PROMOTE_B	= 9,
+	MOVE_PROMOTE_R  = 10,
+	MOVE_PROMOTE_Q  = 11,
+	MOVE_PROMOTE_XN	= 12,
+	MOVE_PROMOTE_XB	= 13,
+	MOVE_PROMOTE_XR	= 14,
+	MOVE_PROMOTE_XQ	= 15,
+	MOVE_PROMOTION  = 8, //  a b c d e f g h	
 };
 
 inline MOVE_FLAGS operator|(MOVE_FLAGS a, MOVE_FLAGS b)
@@ -22,34 +29,25 @@ class CMove
 public:
 
 	CMove()
-		: _from(chess::SQUARE_LAST)
-		, _to(chess::SQUARE_LAST)
-		, _flags(MOVE_NONE)
-		, _promotion(chess::NOTHING)
+		: _move(0)
 	{
 	}
 
+	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags, chess::PIECE piece)
+		: _move(((flags & 0xf)<<12) | ((from & 0x3f)<<6) | (to & 0x3f) | ((piece - 2) << 12))
+	{
+		ASSERT(is_promotion());
+		ASSERT(promotion_piece() == piece);
+	};
+
 	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags)
-		: _from(from)
-		, _to(to)
-		, _flags(flags)
-		, _promotion(chess::NOTHING)
+		: _move(((flags & 0xf)<<12) | ((from & 0x3f)<<6) | (to & 0x3f))
 	{
-		ASSERT(!(flags & MOVE_PROMOTION));
 	};
 
-	CMove(chess::SQUARES from, chess::SQUARES to, MOVE_FLAGS flags, chess::PIECE promotion)
-		: _from(from)
-		, _to(to)
-		, _flags(flags)
-		, _promotion(promotion)
-	{
-		ASSERT(flags & MOVE_PROMOTION);
-	};
-
-	chess::SQUARES from() const { return _from; };
-	chess::SQUARES to() const { return _to; };
-
+	chess::SQUARES from() const { return static_cast<chess::SQUARES>((_move >> 6) & 0x3f); }
+	chess::SQUARES to() const { return static_cast<chess::SQUARES>(_move & 0x3f); }
+	MOVE_FLAGS flags() const { return static_cast<MOVE_FLAGS>((_move >> 12) & 0x0f); }
 	static CMove FromString(std::string s)
 	{
 		ASSERT(s.length() == 4);
@@ -61,7 +59,7 @@ public:
 	std::string longer_algebraic() const
 	{
 		std::stringstream ss;
-		ss << chess::SQUARE_STRINGS[_from];
+		ss << chess::SQUARE_STRINGS[from()];
 		if (is_capture())
 		{
 			ss << "x";
@@ -70,7 +68,7 @@ public:
 		{
 			ss << "-";
 		}
-		ss << chess::SQUARE_STRINGS[_to];
+		ss << chess::SQUARE_STRINGS[to()];
 		if (is_promotion())
 		{
 			ASSERT(false);
@@ -86,8 +84,8 @@ public:
 	std::string long_algebraic() const
 	{
 		std::stringstream ss;
-		ss << chess::SQUARE_STRINGS[_from];
-		ss << chess::SQUARE_STRINGS[_to];
+		ss << chess::SQUARE_STRINGS[from()];
+		ss << chess::SQUARE_STRINGS[to()];
 		if (is_promotion())
 		{
 			ASSERT(false);
@@ -98,61 +96,55 @@ public:
 
 	bool is_castle()const
 	{
-		return (_flags & (MOVE_OO | MOVE_OOO)) != 0;
+		return flags() == MOVE_OO || flags() == MOVE_OOO;
 	}
 
 	bool is_oo()const
 	{
-		return (_flags & MOVE_OO) != 0;
+		return flags() == MOVE_OO;
 	}
 
 	bool is_ooo()const
 	{
-		return (_flags & MOVE_OOO) != 0;
+		return flags() == MOVE_OOO;
 	}
 
 	bool is_check()const
 	{
-		return (_flags & MOVE_CHECK) != 0;
+		return false; // TODO
+		//return (flags() & MOVE_CHECK) != 0;
 	}
 	bool is_capture()const
 	{
-		return (_flags & MOVE_CAPTURE) != 0;
+		return (flags() & MOVE_CAPTURE) != 0;
 	};
 	bool is_normal_move()const
 	{
-		return (_flags & (MOVE_EN_PASSANT | MOVE_PROMOTION | MOVE_OO | MOVE_OOO)) == 0;
+		return (flags() & ~MOVE_CAPTURE) == 0;
 	}
 	bool is_promotion()const
 	{
-		return (_flags & MOVE_PROMOTION) != 0;
+		return (flags() & MOVE_PROMOTION) != 0;
 	};
 	bool is_double_push()const
 	{
-		return (_flags & MOVE_DBL_PUSH) != 0;
+		return flags() == MOVE_DBL_PUSH;
 	};
 	bool is_en_passant_capture()const
 	{
-		return (_flags & MOVE_EN_PASSANT) != 0;
+		return flags() == MOVE_EN_PASSANT;
 	};
 	chess::PIECE promotion_piece()const { 
-		return _promotion;
+		return static_cast<chess::PIECE>((flags() & 3) + chess::KNIGHT);
 	};
 
 	bool CMove::operator==(const CMove& rhs)const
 	{
-		return (_to == rhs._to && _from == rhs._from && _flags == rhs._flags && _promotion == rhs._promotion);
+		return _move == rhs._move;
 	}
 
-	void CMove::set_flag(MOVE_FLAGS mv)
-	{
-		_flags = _flags | mv;
-	}
 	
 private:
-	chess::SQUARES _from;
-	chess::SQUARES _to;
-	MOVE_FLAGS _flags;
-	chess::PIECE _promotion;
+	unsigned int _move;
 };
 

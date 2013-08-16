@@ -10,7 +10,9 @@ namespace
 {
 	int IndexFromZob(const CZobrist zob)
 	{
-		return zob.Hash() & 0xFFFFF;
+		  const int idx = zob.Hash() & 0xFFFFF;
+		  ASSERT(idx < CTranspositionTable::MAX_SIZE);
+		  return idx;
 	}
 }
 

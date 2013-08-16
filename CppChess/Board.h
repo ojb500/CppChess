@@ -58,14 +58,55 @@ public:
 		CMove move;
 	};
 
-	class CPieceList : public std::set<INT_SQUARES>
+	class CPieceList
 	{
 	public:
+		typedef std::vector<INT_SQUARES> container_type;
+		CPieceList()
+			: _v()
+		{
+		}
 		const INT_SQUARES only()const
 		{
-			ASSERT(size() == 1);
-			return *cbegin();
+			ASSERT(_v.size() == 1);
+			return *_v.cbegin();
 		};
+		void insert(INT_SQUARES i)
+		{
+			ASSERT(_v.size() <= 8);
+			_v.push_back(i);
+		};
+		void erase(INT_SQUARES i)
+		{
+			_v.erase(std::remove(_v.begin(), _v.end(), i), _v.end()); 
+		};
+		void clear()
+		{
+			_v.clear();
+		}
+		bool empty()const
+		{
+			return _v.empty();
+		}
+		size_t size()const
+		{
+			return _v.size();
+		}
+		container_type::const_iterator begin()const
+		{
+			return _v.cbegin();
+		}
+		container_type::const_iterator end()const
+		{
+			return _v.cend();
+		}
+		bool operator!=(const CBoard::CPieceList& rhs)const
+		{
+			return _v != rhs._v;
+		}
+		
+	private:
+		std::vector<INT_SQUARES> _v;
 	};
 
 	class CPieceTable 
@@ -83,17 +124,20 @@ public:
 		}
 		const CPieceList& at(const CPiece p)const
 		{
-			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			const size_t i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			ASSERT(i < 12);
 			return _list[i];
 		}
 		CPieceList& operator[](const CPiece p)
 		{
-			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			const size_t i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			ASSERT(i < 12);
 			return _list[i];
 		}
 		const CPieceList& operator[](const CPiece p)const
 		{
-			const int i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			const size_t i = (p.piece() - 1) + (p.side() == chess::BLACK ? 6 : 0);
+			ASSERT(i < 12);
 			return _list[i];
 		}
 		void clear()

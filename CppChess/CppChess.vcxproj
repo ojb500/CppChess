@@ -49,10 +49,13 @@
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>c:\lib\boost154;C:\dev_lib\boost_1_53_0\</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -73,6 +76,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>c:\lib\boost154;C:\dev_lib\boost_1_53_0\</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -86,6 +90,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <Text Include="BratkoKopec.epd.txt" />
     <Text Include="Params.txt">
       <DeploymentContent>true</DeploymentContent>
     </Text>
@@ -94,6 +99,7 @@
   <ItemGroup>
     <ClInclude Include="Board.h" />
     <ClInclude Include="BoardMutator.h" />
+    <ClInclude Include="BratkoKopec.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Heuristic.h" />
@@ -113,6 +119,7 @@
   <ItemGroup>
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="BoardMutator.cpp" />
+    <ClCompile Include="BratkoKopec.cpp" />
     <ClCompile Include="CppChess.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Heuristic.cpp" />
