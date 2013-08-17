@@ -56,6 +56,7 @@ public:
 		chess::CASTLING_RIGHTS cr;
 		CBoard::INT_SQUARES ep;
 		CMove move;
+		unsigned short halfmove_clock;
 	};
 
 	class CPieceList
@@ -212,6 +213,11 @@ public:
 
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
 	CBoard::INT_SQUARES get_smallest_attacker(chess::SIDE attacker, INT_SQUARES sq) const;
+
+	int halfmove_clock() const { return _halfmoves; }
+
+	void put_piece_at(INT_SQUARES sq, CPiece piece);
+	CPiece remove_piece_at(INT_SQUARES sq);
 
 private:
 	CPiece _board[128];

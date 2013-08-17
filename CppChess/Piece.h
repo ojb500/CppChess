@@ -22,6 +22,9 @@ namespace chess
 		PIECE_FIRST = PAWN,
 		PIECE_LAST = KING,
 	};
+
+	const std::string PIECE_STRINGS[] = {"", "P", "N", "B", "R", "Q", "K"};
+
 }
 
 inline chess::SIDE other_side(chess::SIDE s)
@@ -59,9 +62,7 @@ public:
 
 	const std::string as_string()const
 	{
-		const std::string pieces[] = {"", "P", "N", "B", "R", "Q", "K"};
-
-		return pieces[piece()];
+		return chess::PIECE_STRINGS[piece()];
 	}
 
 	const std::string as_side_string()const

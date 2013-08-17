@@ -26,7 +26,7 @@ CPerftSuite::CPerftSuite(void)
 			CBoard b;
 			b.set_fen_position(fen);
 
-			std::cout << b.board() << std::endl;
+			std::cout << b.fen() << " ";
 
 			int depth = 1;
 
@@ -46,7 +46,7 @@ CPerftSuite::CPerftSuite(void)
 
 				if (res.nodes == i)
 				{
-					std::cout << "(depth " << depth << " = " << i << ")" << std::endl;
+					std::cout << ".";
 				}
 				else
 				{

@@ -36,7 +36,7 @@ CBratkoKopec::CBratkoKopec()
 			// 2nd tok is bestmove
 			boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
 
-			CUciSession s(cin, nullOstream, nullOstream);
+			CUciSession s(cin, cout, nullOstream);
 			const std::string bm = *tok++;
 
 			CEngine eng(s);

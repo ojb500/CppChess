@@ -71,6 +71,7 @@ public:
 		ss << chess::SQUARE_STRINGS[to()];
 		if (is_promotion())
 		{
+			ss << chess::PIECE_STRINGS[promotion_piece()];
 			ASSERT(false);
 			// TODO
 		}
@@ -118,6 +119,10 @@ public:
 	{
 		return (flags() & MOVE_CAPTURE) != 0;
 	};
+	bool is_easy_move()const
+	{
+		return !is_castle() && !is_en_passant_capture() && !is_promotion();
+	}
 	bool is_normal_move()const
 	{
 		return (flags() & ~MOVE_CAPTURE) == 0;

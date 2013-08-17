@@ -68,6 +68,12 @@ int CHeuristic::value()
 		}
 	}
 
+	if (b.halfmove_clock() >= 100)
+	{
+		return -contempt; // 50move draw
+
+	}
+
 	return nonterminal_value();
 
 }
