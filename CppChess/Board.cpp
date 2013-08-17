@@ -160,7 +160,7 @@ void CBoard::add_piece(CPiece p, chess::SQUARES sq)
 CBoard::CMemento CBoard::make_move(CMove mv) 
 {
 	CMemento mem(mv);
-	mem.hash.SwitchSideOnMove();
+	_hash.SwitchSideOnMove();
 
 	mem.halfmove_clock = _halfmoves;
 
@@ -244,6 +244,10 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 
 	mem.ep = _en_passant_square;
+	if (!off_board(_en_passant_square))
+	{
+		_hash.ApplyEnPassantFile(_en_passant_square & 7);
+	}
 	_en_passant_square = XA1;
 	if (mv.is_easy_move())
 	{
@@ -260,7 +264,7 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		{
 			const INT_SQUARES sq = INT_SQUARES(from + dist / 2);
 			_en_passant_square = sq;
-			// TODO mem.hash.ApplyEnPassantFile(sq & 7);
+			_hash.ApplyEnPassantFile(sq & 7);
 		}
 
 		put_piece_at(to, remove_piece_at(from));
@@ -387,7 +391,16 @@ void CBoard::unmake_move(CMemento m)
 
 	const INT_SQUARES from = int_index(m.move.from());
 	const INT_SQUARES to = int_index(m.move.to());
+	if (!off_board(_en_passant_square))
+	{ // remove the ep square
+		_hash.ApplyEnPassantFile(_en_passant_square & 7);
+	}
 	_en_passant_square = m.ep;
+	if (!off_board(_en_passant_square))
+	{ // add back the old ep square
+		_hash.ApplyEnPassantFile(_en_passant_square & 7);
+	}
+
 	_castling = m.cr;
 
 	if (m.move.is_easy_move())
@@ -1058,10 +1071,100 @@ CPiece CBoard::piece_at_square(INT_SQUARES sq) const
 
 std::string CBoard::san_name(CMove m) const 
 {
-	return std::string();
+
+	std::stringstream ss;
+
+	if (m.is_oo())
+	{
+		ss << "O-O";
+	}
+	else if (m.is_ooo())
+	{
+		ss << "O-O-O";
+	}
+	else
+	{
+
+		// what kind of piece is moving?
+		const CPiece moving = piece_at_square(m.from());
+		switch (moving)
+		{
+		case chess::PAWN:
+			// if a capture, only specify file
+			if (m.is_capture())
+			{
+				ss << chess::square_file_char(m.to());
+			}
+			break;
+		default:
+			ss << moving.as_string();
+			// How many such pieces can move to this square
+			std::vector<INT_SQUARES> possibles;
+			for (const auto sq : _pieces[moving])
+			{
+				if (piece_attacks_square(moving, sq, int_index(m.to())))
+					possibles.push_back(sq);
+			}
+			if (possibles.size() == 0)
+			{
+				ASSERT(false);
+			}
+			else if (possibles.size() > 1)
+			{
+				// Disambiguate the square somehow
+				std::set<char> files, ranks;
+				transform(possibles.begin(), possibles.end(), inserter(files, files.end()), [](INT_SQUARES sq)
+				{
+					return chess::square_file_char(index(sq));
+				});
+				transform(possibles.begin(), possibles.end(), inserter(ranks, ranks.end()), [](INT_SQUARES sq)
+				{
+					return chess::square_rank_char(index(sq));
+				});
+
+				if (files.size() == possibles.size())
+				{ // File is sufficient to distinguish
+					ss << chess::square_file_char(m.to());
+				}
+				else
+				{
+					if (ranks.size() == possibles.size())
+					{ // Rank suffices
+						ss << chess::square_rank_char(m.to());
+					}
+					else
+					{ // Full square name
+						ss << chess::name_of_square(m.to());
+					}
+				}
+			}
+			break;
+		}
+
+		// capture?
+		if (m.is_capture())
+		{
+			ss << "x";
+		}
+
+		// to square
+		ss << chess::name_of_square(m.to());
+
+		// promotion?
+		if (m.is_promotion())
+		{
+			ss << "=" << chess::PIECE_STRINGS[m.promotion_piece()];
+		}
+	}
+	// check?
+	if (m.is_check())
+	{
+		ss << "+";
+	}
+	return ss.str();
 };
 
-bool CBoard::is_occupied(CBoard::INT_SQUARES sq) const
+bool CBoard::is_occupied(const CBoard::INT_SQUARES sq) const
 {
 	return _board[sq].piece() != chess::NOTHING;
 }
@@ -1074,6 +1177,30 @@ void CBoard::clear_board()
 	}
 	_pieces.clear();
 }
+
+bool CBoard::piece_attacks_square(const CPiece piece, const INT_SQUARES on, const INT_SQUARES target)const
+{
+	ASSERT(piece.piece() != chess::PAWN);
+	for (const auto & ray : _lookups[piece][on])
+	{
+		for (const auto & sq : ray)
+		{
+			CPiece here = piece_at_square(sq);
+			if (here.side() != piece.side())
+			{
+				if (sq == target)
+				{
+					return true;
+				}
+				break;
+			}
+			if (sq == target)
+				return true;
+		}
+	}
+	return false;
+}
+
 
 void CBoard::set_fen_position(std::string fen)
 {

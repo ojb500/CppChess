@@ -306,7 +306,7 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		std::stringstream ss;
 		ss << "Legal moves (" << moves_and_priorities.size() << "): ";
 		for (const auto & mv : moves_and_priorities)
-			ss << mv.first.longer_algebraic() << " ";
+			ss << _b.san_name(mv.first) << " ";
 		_s.WriteLogLine(ss.str());
 	}
 

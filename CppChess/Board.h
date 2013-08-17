@@ -49,9 +49,8 @@ public:
 	struct CMemento
 	{
 	public:
-		CMemento(CMove mv) : move(mv), cr(chess::CR_ALL), ep(), hash(0) {};
+		CMemento(CMove mv) : move(mv), cr(chess::CR_ALL), ep() {};
 
-		CZobrist hash;
 		CPiece captured;
 		chess::CASTLING_RIGHTS cr;
 		CBoard::INT_SQUARES ep;
@@ -212,7 +211,8 @@ public:
 	}
 
 	bool is_square_attacked(chess::SIDE attacker, INT_SQUARES sq) const;
-	CBoard::INT_SQUARES get_smallest_attacker(chess::SIDE attacker, INT_SQUARES sq) const;
+	CBoard::INT_SQUARES get_smallest_attacker(const chess::SIDE attacker, const INT_SQUARES sq) const;
+	bool piece_attacks_square(const CPiece piece, const INT_SQUARES on, const INT_SQUARES target) const;
 
 	int halfmove_clock() const { return _halfmoves; }
 
@@ -223,7 +223,7 @@ private:
 	CPiece _board[128];
 	PieceTable _pieces;
 
-	bool is_occupied(INT_SQUARES sq) const;
+	bool is_occupied(const INT_SQUARES sq) const;
 	typedef std::map<short, std::vector<std::vector<std::vector<INT_SQUARES>>>> LookupTables;
 
 	CZobrist hash_from_scratch() const;

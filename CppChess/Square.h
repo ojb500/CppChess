@@ -56,4 +56,24 @@ namespace chess
 	{
 		return SQUARE_STRINGS[s];
 	};
+
+	inline int square_file(chess::SQUARES s)
+	{
+		return (s % 8);
+	}
+
+	inline char square_file_char(chess::SQUARES s)
+	{
+		return square_file(s) + 'a';
+	}
+
+	inline int square_rank(chess::SQUARES s)
+	{
+		return 7 - (s / 8);
+	}
+
+	inline char square_rank_char(chess::SQUARES s)
+	{
+		return square_rank(s) + '1';
+	}
 };
