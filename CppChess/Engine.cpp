@@ -178,6 +178,8 @@ int CEngine::quiescence_negamax(int alpha, int beta)
 				alpha = score;
 		}
 	}
+
+
 	return alpha;
 }
 
@@ -363,7 +365,7 @@ namespace {
 		if (maybeTte)
 		{
 			auto tte = *maybeTte;
-			if (tte.mv.to() != tte.mv.from() && tte.nt == NT_Exact)
+			if (tte.mv.to() != tte.mv.from())
 			{
 				auto tte = *maybeTte;
 				pv.push_back(tte.mv);

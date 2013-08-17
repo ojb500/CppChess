@@ -10,7 +10,7 @@ namespace
 {
 	int IndexFromZob(const CZobrist zob)
 	{
-		  const int idx = zob.Hash() & 0xFFFFF;
+		  const int idx = zob.Hash() % CTranspositionTable::MAX_SIZE;
 		  ASSERT(idx < CTranspositionTable::MAX_SIZE);
 		  return idx;
 	}
@@ -26,8 +26,7 @@ boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(const C
 
 void CTranspositionTable::store_entry(STranspositionTableEntry tte)
 {
-	if (tte.depth > 0)
-		_table[IndexFromZob(tte.zob)] = tte;
+	_table[IndexFromZob(tte.zob)] = tte;
 }
 
 int CTranspositionTable::permill_full()const

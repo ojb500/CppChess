@@ -130,8 +130,10 @@ namespace
 
 				auto mem = b.make_move(*ep);
 
-				const std::string fen_after = "k7/8/8/8/8/4p3/8/7K w - - 1 2";
+				const std::string fen_after = "k7/8/8/8/8/4p3/8/7K w - - 0 2";
 				CHECK_EQ("move made correctly", b.fen(), fen_after);
+				cout << b.board() << endl;
+
 
 				b.unmake_move(mem);
 

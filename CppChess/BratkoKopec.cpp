@@ -11,6 +11,8 @@ CBratkoKopec::CBratkoKopec()
 {
 	std::ifstream params;
 	params.open("BratkoKopec.epd.txt", std::ifstream::in);
+	int passed = 0;
+	int of = 0;
 	if (params.is_open())
 	{
 		std::string line;
@@ -21,6 +23,7 @@ CBratkoKopec::CBratkoKopec()
 			if (line[0] == '#')
 				continue;
 
+			of++;
 			boost::char_separator<char> sep(";");
 			boost::char_separator<char> sep2(" ");
 			boost::tokenizer<boost::char_separator<char>> toks(line, sep);
@@ -33,17 +36,46 @@ CBratkoKopec::CBratkoKopec()
 
 			std::cout << b.board() << std::endl;
 
-			// 2nd tok is bestmove
+			// 2nd tok is bestmoves
 			boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
 
-			CUciSession s(cin, cout, nullOstream);
-			const std::string bm = *tok++;
+			CUciSession s(cin, nullOstream, nullOstream);
 
+			vector<std::string> bestMoves;
+			{
+				std::string bms = *tok++;
+				boost::tokenizer<> toks(bms);
+				auto moves = toks.begin();
+				moves++;
+				for_each(moves, toks.end(), [&](std::string move)
+				{
+					boost::algorithm::trim(move);
+					bestMoves.push_back(move);
+				});
+			}
+
+
+
+			std::cout << "expecting one of ";
+			for (const auto bm : bestMoves)
+				std::cout << bm << " ";
+			std::cout << "...";
 			CEngine eng(s);
 			eng.set_position(b);
-			cout << eng.IterativeDeepening(chrono::milliseconds(20000)).longer_algebraic() << " == " << bm << " ?";
+			const CMove move = eng.IterativeDeepening(chrono::milliseconds(20000));
+			cout << b.san_name(move);
+
+			if (find(bestMoves.begin(), bestMoves.end(), b.san_name(move)) != bestMoves.end())
+			{
+				cout << "!! " << endl;
+				passed++;
+				}
+			else
+			{
+				cout << "?" << endl << "FEN:" << b.fen() << endl << endl;
+			}
 		}
-		std::cout << "completed";
+		std::cout << "passed" << passed << " of " << of;
 	}
 
 }

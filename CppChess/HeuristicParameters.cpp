@@ -5,10 +5,10 @@ namespace
 {
 	const int base_values[] = { 0, // NOTHING = 0,
 		100, // PAWN = 1,
-		300, // KNIGHT = 2,
-		300, // BISHOP = 3,
-		500, // ROOK = 4,
-		900, // QUEEN = 5,
+		400, // KNIGHT = 2,
+		400, // BISHOP = 3,
+		600, // ROOK = 4,
+		1200, // QUEEN = 5,
 		100000, // KING = 6,
 	};
 }
@@ -30,7 +30,7 @@ CHeuristicParameters::CHeuristicParameters(void)
 				getline(params, line);
 				if (line[0] == '#')
 					continue;
-				boost::char_separator<char> sep("\t ");
+				boost::char_separator<char> sep("\t ,");
 				boost::tokenizer<boost::char_separator<char>> toks(line, sep);
 				for (const auto tok : toks)
 				{

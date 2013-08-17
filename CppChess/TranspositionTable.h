@@ -40,7 +40,7 @@ struct STranspositionTableEntry
 class CTranspositionTable
 {
 public:
-	const static size_t MAX_SIZE = 0x100000;
+	const static size_t MAX_SIZE = 0x200000;
 
 	CTranspositionTable(void);
 	~CTranspositionTable(void);

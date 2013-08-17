@@ -1087,13 +1087,13 @@ std::string CBoard::san_name(CMove m) const
 
 		// what kind of piece is moving?
 		const CPiece moving = piece_at_square(m.from());
-		switch (moving)
+		switch (moving.piece())
 		{
 		case chess::PAWN:
 			// if a capture, only specify file
 			if (m.is_capture())
 			{
-				ss << chess::square_file_char(m.to());
+				ss << chess::square_file_char(m.from());
 			}
 			break;
 		default:
@@ -1124,17 +1124,17 @@ std::string CBoard::san_name(CMove m) const
 
 				if (files.size() == possibles.size())
 				{ // File is sufficient to distinguish
-					ss << chess::square_file_char(m.to());
+					ss << chess::square_file_char(m.from());
 				}
 				else
 				{
 					if (ranks.size() == possibles.size())
 					{ // Rank suffices
-						ss << chess::square_rank_char(m.to());
+						ss << chess::square_rank_char(m.from());
 					}
 					else
 					{ // Full square name
-						ss << chess::name_of_square(m.to());
+						ss << chess::name_of_square(m.from());
 					}
 				}
 			}
