@@ -387,6 +387,8 @@ void CBoard::unmake_move(CMemento m)
 
 	const chess::SIDE other_side = _side;
 
+	_hash.SwitchSideOnMove();
+
 	_side = (_side == chess::BLACK ? chess::WHITE : chess::BLACK);
 
 	const INT_SQUARES from = int_index(m.move.from());
@@ -1186,11 +1188,14 @@ bool CBoard::piece_attacks_square(const CPiece piece, const INT_SQUARES on, cons
 		for (const auto & sq : ray)
 		{
 			CPiece here = piece_at_square(sq);
-			if (here.side() != piece.side())
+			if (here)
 			{
-				if (sq == target)
+				if (here.side() != piece.side())
 				{
-					return true;
+					if (sq == target)
+					{
+						return true;
+					}
 				}
 				break;
 			}

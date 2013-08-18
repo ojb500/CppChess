@@ -148,6 +148,10 @@ public:
 		return _move == rhs._move;
 	}
 
+	operator unsigned int()const
+	{
+		return _move;
+	}
 	
 private:
 	unsigned int _move;
