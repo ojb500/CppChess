@@ -459,7 +459,8 @@ CMove CEngine::IterativeDeepening(millisecs_t timePerMove)
 			<< " nps " << int(_nodes / (duration.count() / 1000.0)) 
 			<< " hashfull " << tt.permill_full() 
 			<< " pv "
-			<< mr.second.long_algebraic();
+			<< mr.second.long_algebraic()
+			<< " ";
 		{
 			CBoardMutator mut(_b, mr.second);
 			for (const auto mv : pv())
