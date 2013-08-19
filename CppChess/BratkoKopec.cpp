@@ -60,9 +60,8 @@ CBratkoKopec::CBratkoKopec()
 			for (const auto bm : bestMoves)
 				std::cout << bm << " ";
 			std::cout << "...";
-			CEngine eng(s);
-			eng.set_position(b);
-			const CMove move = eng.IterativeDeepening(chrono::milliseconds(20000));
+			CEngine eng(s, b);
+			const CMove move = eng.iterative_deepening();
 			cout << b.san_name(move);
 
 			if (find(bestMoves.begin(), bestMoves.end(), b.san_name(move)) != bestMoves.end())

@@ -219,6 +219,8 @@ public:
 	void put_piece_at(INT_SQUARES sq, CPiece piece);
 	CPiece remove_piece_at(INT_SQUARES sq);
 
+	int fullmove_number() const { return _fullmove; }
+
 private:
 	CPiece _board[128];
 	PieceTable _pieces;

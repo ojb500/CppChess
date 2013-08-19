@@ -28,6 +28,7 @@
 #include <functional>
 #include <chrono>
 #include <thread>
+#include <future>
 
 #include <boost\tokenizer.hpp>
 #include <boost/algorithm/string.hpp>

@@ -3,14 +3,16 @@
 
 CTranspositionTable::CTranspositionTable(void)
 	: _table(MAX_SIZE)
+	, occupancy(0)
+	, collisions(0)
 {
 }
 
 namespace 
 {
-	int IndexFromZob(const CZobrist zob)
+	size_t IndexFromZob(const CZobrist zob)
 	{
-		  const int idx = zob.Hash() % CTranspositionTable::MAX_SIZE;
+		  const size_t idx = zob.Hash() % CTranspositionTable::MAX_SIZE;
 		  ASSERT(idx < CTranspositionTable::MAX_SIZE);
 		  return idx;
 	}
@@ -26,12 +28,31 @@ boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(const C
 
 void CTranspositionTable::store_entry(STranspositionTableEntry tte)
 {
-	_table[IndexFromZob(tte.zob)] = tte;
+	const auto idx = IndexFromZob(tte.zob);
+	if (_table[idx].depth == -1)
+	{
+		occupancy++;
+	}
+	else
+	{
+		if (tte.zob != _table[idx].zob)
+		{
+			collisions++;
+		}
+		else
+		{
+			// Only replace if depth greater
+			if (tte.depth < _table[idx].depth)
+				return;
+		}
+	}
+
+	_table[idx] = tte;
 }
 
 int CTranspositionTable::permill_full()const
 {
-	return 0;
+	return int((occupancy / static_cast<float>(MAX_SIZE)) * 1000);
 }
 
 CTranspositionTable::~CTranspositionTable(void)

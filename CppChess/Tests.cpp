@@ -64,9 +64,8 @@ namespace
 		{// easy mate in 1
 			CBoard b;
 			CUciSession s(cin, cout, cout);
-			CEngine e(s);
 			b.set_fen_position("8/8/8/8/8/8/6PP/2r1k2K b - - 0 1");
-			e.set_position(b);
+			CEngine e(s,b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
 			
@@ -74,9 +73,8 @@ namespace
 		{// win the queen
 			CBoard b;
 			CUciSession s(cin, cout, cout);
-			CEngine e(s);
 			b.set_fen_position("8/4Q3/8/8/4K3/8/1q6/5k2 b - - 0 1");
-			e.set_position(b);
+			CEngine e(s,b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
 			
@@ -84,18 +82,16 @@ namespace
 		{ // tricky mate
 			CBoard b;
 			CUciSession s(cin, cout, cout);
-			CEngine e(s);
 			b.set_fen_position("3r3k/2qnb2p/p2p4/1pnBprP1/1P3P2/P6R/2P1Q2P/R1B3K1 w - - 0 23");
-			e.set_position(b);
+			CEngine e(s,b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
 		}
 		{
 			CBoard b;
 			CUciSession s(cin, cout, cout);
-			CEngine e(s);
 			b.set_fen_position("k7/6q1/8/8/3Q4/8/8/7K w - - 0 1");
-			e.set_position(b);
+			CEngine e(s,b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
 		}
@@ -184,8 +180,7 @@ namespace
 			cout << b.board();
 
 			CUciSession s(cin, cout, cout);
-			CEngine e(s);
-			e.set_position(b);
+			CEngine e(s, b);
 			auto think = e.Think();
 			cout << think.long_algebraic() << endl;
 		}

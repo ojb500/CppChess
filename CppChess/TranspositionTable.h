@@ -52,5 +52,8 @@ public:
 
 private:
 	std::vector<STranspositionTableEntry> _table;
+
+	size_t occupancy;
+	size_t collisions;
 };
 

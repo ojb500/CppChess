@@ -7,7 +7,7 @@
 #include "BratkoKopec.h"
 #include <time.h>
 #include "Tests.h"
-
+#include <future>
 
 using namespace std;
 
@@ -46,6 +46,7 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 	: _i(i)
 	, _o(o.rdbuf())
 	, _log(log.rdbuf())
+	, _cancelling(false)
 {
 }
 
@@ -53,7 +54,10 @@ void CUciSession::listen()
 {
 	string s;
 	CBoard b;
-	std::shared_ptr<CEngine> e = make_shared<CEngine>(*this);
+	
+	std::future<CMove> fut;
+	
+
 	while (getline(_i, s, '\n'))
 	{
 
@@ -69,24 +73,23 @@ void CUciSession::listen()
 		{
 			exit(0);
 		}
-		if (*j == "uci")
+		else if (*j == "uci")
 		{
-			WriteLine("id name ojchess-cpp");
-			WriteLine("uciok");
+			write_line("id name ojchess-cpp");
+			write_line("uciok");
 		}
 		else if (*j == "isready")
 		{
-			WriteLine("readyok");
+			write_line("readyok");
 		}
 		else if (*j == "board")
 		{
-			WriteLine("Current board:\r\n" + b.board());
+			write_line("Current board:\r\n" + b.board());
 		}
 		else if (*j == "ucinewgame")
 		{
-			e = make_shared<CEngine>(*this);
 			b = CBoard();
-			WriteLine("readyok");
+			write_line("readyok");
 		}
 		else if (*j == "position")
 		{
@@ -128,7 +131,6 @@ void CUciSession::listen()
 						ASSERT(false);
 				}
 			}
-			e->set_position(b);
 		}
 		else if (*j == "perft")
 		{
@@ -139,17 +141,18 @@ void CUciSession::listen()
 				maxdepth = atoi(j->c_str());
 				++j;
 			}
-			e->Perft(maxdepth);
+			CEngine e(*this, b);
+			e.Perft(maxdepth);
 		}
 		else if (*j == "bk")
 		{
 			CBratkoKopec ps;
-			WriteLine("completed");
+			write_line("completed");
 		}
 		else if (*j == "perftsuite")
 		{
 			CPerftSuite ps;
-			WriteLine("completed");
+			write_line("completed");
 		}
 		else if (*j == "divide")
 		{
@@ -170,7 +173,14 @@ void CUciSession::listen()
 		else if (*j == "go")
 		{
 			// read the rest of the parameters (if any)
-			map<std::string, int> params;
+			CEngine::millisecs_t wtime(-1);
+			CEngine::millisecs_t btime(-1);
+			CEngine::millisecs_t winc(-1);
+			CEngine::millisecs_t binc(-1);
+			int movesToGo = -1;
+			int maxDepth = -1;
+			int maxNodes = -1;
+
 			while (!j.at_end())
 			{
 				j++;
@@ -182,26 +192,59 @@ void CUciSession::listen()
 					if (!j.at_end())
 					{
 						const int value = boost::lexical_cast<int>(*j);
-						params[paramName] = value;
+						if (paramName == "wtime")
+							wtime = CEngine::millisecs_t(value);
+						else if (paramName == "btime")
+							btime = CEngine::millisecs_t(value);
+						else if (paramName == "winc")
+							winc = CEngine::millisecs_t(value);
+						else if (paramName == "binc")
+							binc = CEngine::millisecs_t(value);
+						else if (paramName == "movestogo")
+							movesToGo = value;
+						else if (paramName == "depth")
+							maxDepth = value;
+						else if (paramName == "nodes")
+							maxNodes = value;
 					}
 				}
 			}
 
-			auto m = e->IterativeDeepening(CEngine::millisecs_t(10000));
+			fut = std::async(std::launch::async, [&, this] () -> CMove {
+				CEngine e(*this, b, wtime, winc, btime, binc, movesToGo, maxDepth, maxNodes);
+				auto m = e.iterative_deepening();
+				write_line("bestmove " + m.long_algebraic());
+				return m;
+			});
 
-			WriteLine("bestmove " + m.long_algebraic());
 			// TODO do stuff with engine
 		}
+		else if (*j == "stop")
+		{
+			if (fut.valid())
+			{
+				_cancelling = true;
+				try
+				{
+					CMove mv = fut.get();
+					write_line("bestmove " + mv.long_algebraic());
+				}
+				catch (CEngine::CExceptionCancelled)
+				{
+				}
+			}
+		}
 	}
+	ASSERT(false);
 }
-void CUciSession::WriteLine(std::string s)
+void CUciSession::write_line(std::string s)
 {
 	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
 	_log << dt << " >> " << s << endl;
 	_o << s << endl;
 }
 
-void CUciSession::WriteLogLine(std::string s)
+void CUciSession::write_log_line(std::string s)
 {
 	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
 	_log << dt << " # " << s << endl;
@@ -210,4 +253,9 @@ void CUciSession::WriteLogLine(std::string s)
 
 CUciSession::~CUciSession(void)
 {
+}
+
+bool CUciSession::is_cancelling() const
+{
+	return _cancelling;
 }
