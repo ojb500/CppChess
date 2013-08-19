@@ -55,7 +55,7 @@ void CUciSession::listen()
 	string s;
 	CBoard b;
 	
-	std::future<CMove> fut;
+	std::thread thr;
 	
 
 	while (getline(_i, s, '\n'))
@@ -210,28 +210,28 @@ void CUciSession::listen()
 				}
 			}
 
-			fut = std::async(std::launch::async, [&, this] () -> CMove {
-				CEngine e(*this, b, wtime, winc, btime, binc, movesToGo, maxDepth, maxNodes);
-				auto m = e.iterative_deepening();
-				write_line("bestmove " + m.long_algebraic());
-				return m;
-			});
-
-			// TODO do stuff with engine
-		}
-		else if (*j == "stop")
-		{
-			if (fut.valid())
-			{
-				_cancelling = true;
+			thr = std::thread([&, this] () {
 				try
 				{
-					CMove mv = fut.get();
-					write_line("bestmove " + mv.long_algebraic());
+					CEngine e(*this, b, wtime, winc, btime, binc, movesToGo, maxDepth, maxNodes);
+					auto m = e.iterative_deepening();
+					write_line("bestmove " + m.long_algebraic());
 				}
 				catch (CEngine::CExceptionCancelled)
 				{
 				}
+				catch (...)
+				{
+					cout << "FUCK! ";// ##<< ex.what();
+				}
+			});
+		}
+		else if (*j == "stop")
+		{
+			if (thr.joinable())
+			{
+				_cancelling = true;
+//thr.join();
 			}
 		}
 	}
@@ -239,15 +239,17 @@ void CUciSession::listen()
 }
 void CUciSession::write_line(std::string s)
 {
-	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
+	const std::string dt(DateTimeNow());
 	_log << dt << " >> " << s << endl;
 	_o << s << endl;
 }
 
 void CUciSession::write_log_line(std::string s)
 {
-	const std::string dt(DateTimeNow()); // TODO EVIL?!?!
+	const std::string dt(DateTimeNow());
 	_log << dt << " # " << s << endl;
+	if (find(s.begin(), s.end(), '\n') == s.end())
+		_o << "info string " << s << endl;
 }
 
 

@@ -42,7 +42,7 @@ namespace
 
 	CEngine::millisecs_t time_for_move(CBoard& b, CEngine::millisecs_t wtime, CEngine::millisecs_t winc, CEngine::millisecs_t btime, CEngine::millisecs_t binc, int movestogo)
 	{
-		if (wtime.count() == 0 && btime.count() == 0)
+		if (wtime.count() < 0 && btime.count() < 0)
 			return CEngine::millisecs_t(std::numeric_limits<int>::max()); // almost infinite
 
 
@@ -258,7 +258,7 @@ int CEngine::quiescence_negamax(int alpha, int beta)
 int CEngine::negamax(int depth, int alpha, int beta, int color)
 {
 	if (should_cancel())
-		throw new CExceptionCancelled();
+		throw CExceptionCancelled();
 
 	_nodes++;
 
@@ -429,9 +429,17 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		_s.write_log_line("cancelled search");
 	}
 	//	output_pv();
-	ASSERT(best_move);
-
-	return std::make_pair(alpha, *best_move);
+	if (best_move)
+	{
+		return std::make_pair(alpha, *best_move);
+	}
+	else
+	{
+		_s.write_log_line("retrieving bm from tt");
+		auto tte = tt.get_entry(_b.hash());
+		ASSERT(tte);
+		return std::make_pair(tte->value, tte->mv);
+	}
 }
 
 namespace {
@@ -519,11 +527,14 @@ bool CEngine::should_cancel()
 }
 CMove CEngine::iterative_deepening()
 {
+	ASSERT(_timeForThisMove.count() > 0);
 	{
 		std::stringstream ss;
-		ss << "Using iterative deepening with " << _timeForThisMove.count() << "ms thinking time\n";
-		ss << _b.fen() << "\n" << _b.board();
+		ss << "Using iterative deepening with " << _timeForThisMove.count() << "ms thinking time";
 		_s.write_log_line(ss.str());
+		_s.write_log_line(_b.fen());
+		ss << _b.fen() << "\n" << _b.board();
+		
 	}
 
 	_nodes = 0;
