@@ -10,7 +10,7 @@ using namespace std;
 CBratkoKopec::CBratkoKopec()
 {
 	std::ifstream params;
-	params.open("BratkoKopec.epd.txt", std::ifstream::in);
+	params.open("BratkoKopec.epd", std::ifstream::in);
 	int passed = 0;
 	int of = 0;
 	if (params.is_open())

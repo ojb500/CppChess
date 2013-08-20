@@ -5,7 +5,7 @@
 CPerftSuite::CPerftSuite(void)
 {
 	std::ifstream params;
-	params.open("perftsuite.epd.txt", std::ifstream::in);
+	params.open("perftsuite.epd", std::ifstream::in);
 	if (params.is_open())
 	{
 		std::string line;

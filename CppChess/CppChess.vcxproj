@@ -96,7 +96,9 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"
+del $(OutDir)\Version.obj</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -140,7 +142,9 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"
+del "$(IntDir)Version.obj"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -167,7 +171,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="BratkoKopec.epd.txt" />
+    <Text Include="BratkoKopec.epd" />
     <Text Include="Params.txt">
       <DeploymentContent>true</DeploymentContent>
     </Text>
@@ -191,6 +195,7 @@
     <ClInclude Include="Tests.h" />
     <ClInclude Include="TranspositionTable.h" />
     <ClInclude Include="UciSession.h" />
+    <ClInclude Include="Version.h" />
     <ClInclude Include="Zobrist.h" />
   </ItemGroup>
   <ItemGroup>
@@ -213,10 +218,11 @@
     <ClCompile Include="Tests.cpp" />
     <ClCompile Include="TranspositionTable.cpp" />
     <ClCompile Include="UciSession.cpp" />
+    <ClCompile Include="Version.cpp" />
     <ClCompile Include="Zobrist.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="perftsuite.epd.txt">
+    <None Include="perftsuite.epd">
       <DeploymentContent>true</DeploymentContent>
     </None>
   </ItemGroup>
