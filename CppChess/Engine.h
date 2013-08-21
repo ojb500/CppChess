@@ -43,7 +43,7 @@ private:
 	int negamax(int depth, int alpha, int beta, int color);
 	int quiescence_negamax(int alpha, int beta);
 
-	CTranspositionTable tt;
+	static CTranspositionTable tt;
 
 	void write_current_move(std::string, int);
 	void write_best_move(std::string, int);

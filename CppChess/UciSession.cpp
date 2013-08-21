@@ -8,6 +8,7 @@
 #include <time.h>
 #include "Tests.h"
 #include <future>
+#include "Version.h"
 
 using namespace std;
 
@@ -48,6 +49,7 @@ CUciSession::CUciSession(std::istream & i, std::ostream & o, std::ostream & log)
 	, _log(log.rdbuf())
 	, _cancelling(false)
 {
+	write_log_line(CVersion()());
 }
 
 void CUciSession::listen()
@@ -172,6 +174,14 @@ void CUciSession::listen()
 		}
 		else if (*j == "go")
 		{
+			if (thr.joinable())
+			{
+				write_log_line("joining thread");
+				thr.join();
+			}
+
+			_cancelling = false;
+
 			// read the rest of the parameters (if any)
 			CEngine::millisecs_t wtime(-1);
 			CEngine::millisecs_t btime(-1);
@@ -224,6 +234,7 @@ void CUciSession::listen()
 				{
 					cout << "FUCK! ";// ##<< ex.what();
 				}
+				write_log_line("thread terminating normally");
 			});
 		}
 		else if (*j == "stop")
@@ -231,7 +242,7 @@ void CUciSession::listen()
 			if (thr.joinable())
 			{
 				_cancelling = true;
-//thr.join();
+				thr.join();
 			}
 		}
 	}

@@ -7,6 +7,9 @@
 
 using namespace std;
 
+
+CTranspositionTable CEngine::tt = CTranspositionTable();
+
 namespace
 {
 	int TrimEvaluationForMate(int eval)

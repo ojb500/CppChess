@@ -72,8 +72,6 @@ public:
 		if (is_promotion())
 		{
 			ss << chess::PIECE_STRINGS[promotion_piece()];
-			ASSERT(false);
-			// TODO
 		}
 		if (is_check())
 		{
@@ -89,8 +87,7 @@ public:
 		ss << chess::SQUARE_STRINGS[to()];
 		if (is_promotion())
 		{
-			ASSERT(false);
-			// TODO
+			ss << chess::PIECE_STRINGS[promotion_piece()];
 		}
 		return ss.str();
 	}
