@@ -95,11 +95,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
-    <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
-xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"
-del $(OutDir)\Version.obj</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -141,11 +137,7 @@ del $(OutDir)\Version.obj</Command>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
-    <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
-xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"
-del "$(IntDir)Version.obj"</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
