@@ -46,12 +46,15 @@ public:
 	~CTranspositionTable(void);
 
 	boost::optional<STranspositionTableEntry> get_entry(const CZobrist zob)const;
+	boost::optional<STranspositionTableEntry> get_pv_entry(const CZobrist zob)const;
+
 	void store_entry(STranspositionTableEntry tte);
 
 	int permill_full()const;
 
 private:
 	std::vector<STranspositionTableEntry> _table;
+	std::vector<STranspositionTableEntry> _pv;
 
 	size_t occupancy;
 	size_t collisions;

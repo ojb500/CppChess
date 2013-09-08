@@ -43,7 +43,7 @@ namespace
 		return ss.str();
 	}
 
-	CEngine::millisecs_t time_for_move(CBoard& b, CEngine::millisecs_t wtime, CEngine::millisecs_t winc, CEngine::millisecs_t btime, CEngine::millisecs_t binc, int movestogo)
+	CEngine::millisecs_t time_for_move(CUciSession & us, CBoard& b, CEngine::millisecs_t wtime, CEngine::millisecs_t winc, CEngine::millisecs_t btime, CEngine::millisecs_t binc, int movestogo)
 	{
 		if (wtime.count() < 0 && btime.count() < 0)
 			return CEngine::millisecs_t(std::numeric_limits<int>::max()); // almost infinite
@@ -72,18 +72,35 @@ namespace
 		movesLeft += 1; // tiny safety margin
 
 
-		
+
 		// work out rough time per move
 		CEngine::millisecs_t time_per_move;
+		CEngine::millisecs_t opponents_time_per_move;
 		if (b.side_on_move() == chess::WHITE)
 		{
 			time_per_move += winc;
 			time_per_move += (wtime / movesLeft);
+			opponents_time_per_move += binc;
+			opponents_time_per_move += (btime / movesLeft);
 		}
 		else
 		{
 			time_per_move += binc;
 			time_per_move += (btime / movesLeft);
+			opponents_time_per_move += winc;
+			opponents_time_per_move += (wtime / movesLeft);
+		}
+
+		if (opponents_time_per_move < time_per_move)
+		{
+			const double percent = (static_cast<double>(opponents_time_per_move.count()) / static_cast<double>(time_per_move.count())) * 0.8;
+			const int extraMillis = static_cast<int>(static_cast<double>(time_per_move.count()) * percent);
+
+			stringstream ss;
+			ss << "adding " << extraMillis << "ms extra time as opponent is slow";
+			us.write_log_line(ss.str());
+
+			time_per_move += CEngine::millisecs_t(extraMillis);
 		}
 
 		return time_per_move; 
@@ -121,7 +138,16 @@ CEngine::CEngine(CUciSession & us, CBoard b, millisecs_t wtime, millisecs_t winc
 	, _maxnodes(maxnodes)
 	, _b(b)
 {
-	_timeForThisMove = time_for_move(_b, wtime, winc, btime, binc, movestogo);
+	_timeForThisMove = time_for_move(us, _b, wtime, winc, btime, binc, movestogo);
+#ifdef _DEBUG
+	{
+		std::stringstream ss;
+		ss << "Static evaluation: ";
+		ss << CHeuristic(_b).value();
+
+		us.write_log_line(ss.str());
+	}
+#endif	
 }
 
 namespace
@@ -236,7 +262,7 @@ int CEngine::quiescence_negamax(int alpha, int beta)
 
 	{
 		int score;
-		
+
 		for (auto & mv : mvs)
 		{
 			if (mv.is_capture() && !see_capture(_b, mv))
@@ -437,11 +463,11 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		return std::make_pair(alpha, *best_move);
 	}
 	else
-	{
-		_s.write_log_line("retrieving bm from tt");
-		auto tte = tt.get_entry(_b.hash());
-		ASSERT(tte);
-		return std::make_pair(tte->value, tte->mv);
+	{\
+	_s.write_log_line("retrieving bm from tt");
+	auto tte = tt.get_pv_entry(_b.hash());
+	ASSERT(tte);
+	return std::make_pair(tte->value, tte->mv);
 	}
 }
 
@@ -451,7 +477,7 @@ namespace {
 		if (pv.size() >= 20)
 			return;
 
-		auto maybeTte = tt.get_entry(b.hash());
+		auto maybeTte = tt.get_pv_entry(b.hash());
 		if (maybeTte)
 		{
 			auto tte = *maybeTte;
@@ -536,8 +562,13 @@ CMove CEngine::iterative_deepening()
 		ss << "Using iterative deepening with " << _timeForThisMove.count() << "ms thinking time";
 		_s.write_log_line(ss.str());
 		_s.write_log_line(_b.fen());
+		_s.write_log_line(_b.fen());
 		ss << _b.fen() << "\n" << _b.board();
-		
+
+	}
+	{
+		std::stringstream ss;
+		ss << "Endgame: " << _b.game_stage() << "%";
 	}
 
 	_nodes = 0;

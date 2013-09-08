@@ -3,5 +3,6 @@ class CVersion
 {
 public:
 	const std::string operator()();
+
 };
 

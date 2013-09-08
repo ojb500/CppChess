@@ -96,6 +96,10 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent />
+    <PostBuildEvent>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -115,7 +119,8 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -138,6 +143,10 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent />
+    <PostBuildEvent>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -159,7 +168,8 @@
       <AdditionalLibraryDirectories>c:\lib\boost154\stage\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)*.txt" "$(OutDir)"
+xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

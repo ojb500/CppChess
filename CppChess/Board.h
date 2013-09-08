@@ -192,6 +192,8 @@ public:
 
 	const PieceTable& piece_table() const;
 
+	int game_stage() const;
+
 	static CBoard::INT_SQUARES int_index(chess::SQUARES sq)
 	{
 		return CBoard::INT_SQUARES(sq + (sq & ~7));

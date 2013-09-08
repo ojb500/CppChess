@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Board.h"
 #include "BoardMutator.h"
+#include "HeuristicParameters.h"
 
 namespace
 {
@@ -35,6 +36,38 @@ void CBoard::AddOffsetAttacks(CBoard::INT_SQUARES start, int offset, int max, st
 	}
 	if (v.size())
 		lt.push_back(v);
+}
+
+int CBoard::game_stage() const
+{
+	// The point of this is to return a number 0-100 to say how much we're in an endgame
+	// A Q counts twice...
+	static CHeuristicParameters chp;
+	static const long max =		chp.get_value(chess::PAWN) * 16
+						+	chp.get_value(chess::KNIGHT) * 4
+						+	chp.get_value(chess::BISHOP) * 4
+						+	chp.get_value(chess::ROOK) * 4
+						+	chp.get_value(chess::QUEEN) * 4;
+
+	// A guess at a reasonable amount of material for a typical endgame
+	static const long min =		chp.get_value(chess::PAWN) * 6
+							+	chp.get_value(chess::ROOK) * 1;
+
+	long current = 0;
+
+	for (int s = chess::WHITE; s <= chess::BLACK; s++)
+	{
+		for (int p = chess::PAWN; p < chess::KING; p++)
+		{
+			const CPiece pc(static_cast<chess::SIDE>(s), static_cast<chess::PIECE>(p));
+			current += chp.get_value(pc.piece()) * piece_table()[pc].size() * (p == chess::QUEEN ? 2 : 1);
+		}
+	}
+
+
+	return 100 - std::max(0, std::min(100, 
+			static_cast<int>(static_cast<double>(current - min) / static_cast<double>(max - min) * 100.0)
+		));
 }
 
 CBoard::LookupTables CBoard::createLookupTables()

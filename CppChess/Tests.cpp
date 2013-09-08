@@ -185,11 +185,33 @@ namespace
 			cout << think.long_algebraic() << endl;
 		}
 	}
+
+	void BoardTests()
+	{
+		{
+			CBoard b0;
+			cout << b0.board();
+			cout << b0.game_stage() << "% endgame" << endl;
+
+			CBoard b;
+			b.set_fen_position("r2q1rk1/pp2pppp/2p5/1n1p1b2/8/3Q4/PPP2PPP/RN3RK1 w - - 0 1");
+			cout << b.board();
+			cout << b.game_stage() << "% endgame" << endl;
+
+			CBoard b2;
+			b2.set_fen_position("r4rk1/pp2pppp/2p5/1n1p1b2/8/8/PPP2PPP/RN3RK1 w - - 0 1");
+			cout << b2.board();
+			cout << b2.game_stage() << "% endgame" << endl;
+
+			CHECK_GT("endgame correctly recognised", b2.game_stage(), b.game_stage());
+		}
+	}
 }
+
 
 CTests::CTests(void)
 {
-	//
+	BoardTests();
 	MoveGenTests();
 	EngineTests();
 	MoveOrderTests();
