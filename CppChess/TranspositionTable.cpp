@@ -21,16 +21,17 @@ namespace
 
 boost::optional<STranspositionTableEntry> CTranspositionTable::get_entry(const CZobrist zob)const
 {
-	boost::optional<STranspositionTableEntry> tte = _table[IndexFromZob(zob)];
-	if (tte->depth > -1 && tte->zob == zob)
+	const STranspositionTableEntry& tte = _table[IndexFromZob(zob)];
+	
+	if (tte.depth > -1 && tte.zob == zob)
 		return tte;
 	return boost::none;
 }
 
 boost::optional<STranspositionTableEntry> CTranspositionTable::get_pv_entry(const CZobrist zob)const
 {
-	boost::optional<STranspositionTableEntry> tte = _pv[IndexFromZob(zob)];
-	if (tte->depth > -1 && tte->zob == zob)
+	const STranspositionTableEntry& tte = _pv[IndexFromZob(zob)];
+	if (tte.depth > -1 && tte.zob == zob)
 		return tte;
 	return boost::none;
 }

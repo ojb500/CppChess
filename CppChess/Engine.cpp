@@ -91,9 +91,14 @@ namespace
 			opponents_time_per_move += (wtime / movesLeft);
 		}
 
+		{
+			stringstream ss;
+			ss << "TpM (" << movesLeft << ") = " << time_per_move.count() << ", opponent " << opponents_time_per_move.count();
+			us.write_log_line(ss.str());
+		}
 		if (opponents_time_per_move < time_per_move)
 		{
-			const double percent = (static_cast<double>(opponents_time_per_move.count()) / static_cast<double>(time_per_move.count())) * 0.8;
+			const double percent = (static_cast<double>(time_per_move.count()) / static_cast<double>(opponents_time_per_move.count())) * 0.16;
 			const int extraMillis = static_cast<int>(static_cast<double>(time_per_move.count()) * percent);
 
 			stringstream ss;
@@ -101,6 +106,21 @@ namespace
 			us.write_log_line(ss.str());
 
 			time_per_move += CEngine::millisecs_t(extraMillis);
+		}
+		else if (opponents_time_per_move > time_per_move)
+		{
+			const double percent = (static_cast<double>(opponents_time_per_move.count()) / static_cast<double>(time_per_move.count())) * 0.1;
+
+			if (percent > 0.05)
+			{
+				const int extraMillis = static_cast<int>(static_cast<double>(time_per_move.count()) * percent);
+
+				stringstream ss;
+				ss << "removing " << extraMillis << "ms of time as opponent is fast";
+				us.write_log_line(ss.str());
+
+				time_per_move -= CEngine::millisecs_t(extraMillis);
+			}
 		}
 
 		return time_per_move; 
@@ -333,6 +353,8 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 	int n = 1;
 	int best = -10000;
 	int best_move_index = -1;
+	NodeType nt = NT_LB;
+
 	int i = -1;
 	for (const auto & mvp : moves_and_priorities)
 	{
@@ -341,7 +363,7 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 		{
 			CBoardMutator mut(_b,mv);
 			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
-			if (val >= best)
+			if (val > best)
 			{
 				best = val;
 				best_move_index = i;
@@ -349,29 +371,18 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 			if (best > alpha)
 			{
 				alpha = best;
+				nt = NT_Exact;
 			}
 			if (best >= beta)
+			{
+				best = beta;
+				nt = NT_UB;
 				break;
-
-
+			}
 		}
 	}
-	{
-		NodeType nt;
-		if (best <= alpha)
-		{
-			nt = NT_LB;
-		}
-		else if (best >= beta)
-		{
-			nt = NT_UB;
-		}
-		else
-		{
-			nt = NT_Exact;
-		}
-		tt.store_entry(STranspositionTableEntry(_b.hash(), depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
-	}
+
+	tt.store_entry(STranspositionTableEntry(_b.hash(), depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
 	return best;
 }
 
@@ -408,7 +419,7 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 			std::stringstream ss;
 			ss << "Legal moves (" << moves_and_priorities.size() << "): ";
 			for (const auto & mv : moves_and_priorities)
-				ss << _b.san_name(mv.first) << " ";
+				ss << _b.san_name(mv.first) << "[" << mv.second << "] ";
 			_s.write_log_line(ss.str());
 		}
 
@@ -460,14 +471,15 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 	//	output_pv();
 	if (best_move)
 	{
+		tt.store_entry(STranspositionTableEntry(_b.hash(), depth, *best_move, best, NT_Exact));
 		return std::make_pair(alpha, *best_move);
 	}
 	else
-	{\
-	_s.write_log_line("retrieving bm from tt");
-	auto tte = tt.get_pv_entry(_b.hash());
-	ASSERT(tte);
-	return std::make_pair(tte->value, tte->mv);
+	{
+		_s.write_log_line("retrieving bm from tt");
+		auto tte = tt.get_pv_entry(_b.hash());
+		ASSERT(tte);
+		return std::make_pair(tte->value, tte->mv);
 	}
 }
 
@@ -483,7 +495,6 @@ namespace {
 			auto tte = *maybeTte;
 			if (tte.mv.to() != tte.mv.from())
 			{
-				auto tte = *maybeTte;
 				pv.push_back(tte.mv);
 				CBoardMutator mut(b, tte.mv);
 				get_pv(pv, b, tt);
@@ -518,7 +529,7 @@ void CEngine::write_current_move(std::string s, int i)
 void CEngine::write_best_move(std::string s, int i)
 {
 	std::stringstream ss;
-	ss << "info bestmove " << s << " score cp "<< i;
+	ss << "info string bestmove " << s << " score cp "<< i;
 	_s.write_line(ss.str());
 }
 
@@ -609,17 +620,6 @@ CMove CEngine::iterative_deepening()
 	catch (CExceptionCancelled)
 	{
 		_s.write_log_line("caught cancelled exception at root");
-	}
-
-
-	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now() ;
-	millisecs_t duration( std::chrono::duration_cast<millisecs_t>(now-thinking_started) ) ;
-
-	{
-		std::stringstream ss;
-		ss << int(_nodes / (duration.count() / 1000.0)) << " nps, " << duration.count() << " msec";
-		ss << _nodes << " nodes, " << _qnodes << " qnodes";
-		_s.write_log_line(ss.str());
 	}
 
 	return mr.second;
