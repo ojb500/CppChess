@@ -33,7 +33,7 @@ namespace
 			ss << "mate ";
 			int in_ply = 10000 - abs(score);
 			int mating_or_mated = (score > 0 ? 1 : -1);
-			ss << (1 + (in_ply / 2)) * mating_or_mated;
+			ss << ((score > 0 ? 1 : 0) + (in_ply / 2)) * mating_or_mated;
 		}
 		else
 		{
@@ -204,16 +204,20 @@ namespace
 		return value;
 	}
 
-	int move_score(CBoard& b, const CMove& m, int ply, const boost::optional<STranspositionTableEntry>& tte)
+	unsigned char move_score(CBoard& b, const CMove& m, const CEngine::CKillerMoves& km, int ply, const boost::optional<STranspositionTableEntry>& tte)
 	{
 		// hash move
 		if (tte)
 		{
-			if (tte->mv == m)
-				return 10000;
+			if (tte->mv == m && tte->nt == NT_Exact)
+				return 255;
 		}
 
-		int s=0;
+		// killer move
+		if (km.is_killer(ply, m))
+			return 254;
+
+		unsigned char s=0;
 		if (m.is_double_push())
 			s+=5;
 		if (m.is_castle())
@@ -222,7 +226,7 @@ namespace
 		{
 			const int static_exch_eval = see_capture(b, m);
 			if (static_exch_eval > 0)
-				s+=20 + static_exch_eval;
+				s+=20 + (static_exch_eval >> 6);
 		}
 		if (m.is_check())
 			s+=10;
@@ -290,7 +294,7 @@ int CEngine::quiescence_negamax(int alpha, int beta)
 
 			{
 				CBoardMutator mut(_b, mv);
-				score = -quiescence_negamax(-beta, -alpha);
+				score = -TrimEvaluationForMate(quiescence_negamax(-beta, -alpha));
 			}
 
 			if (score >= beta)
@@ -331,13 +335,13 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 
 	if (depth <= 0)
 	{
-		return quiescence_negamax(alpha, beta);
+		return TrimEvaluationForMate(quiescence_negamax(alpha, beta));
 	}
 
 	vector<pair<CMove, int>> moves_and_priorities;
 	for (const auto & mv : _b.legal_moves())
 	{
-		moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _b.ply(), tte)));
+		moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _killers, _b.ply(), tte)));
 	}
 
 	if (moves_and_priorities.size() == 0)
@@ -351,7 +355,6 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 	});
 
 	int n = 1;
-	int best = -10000;
 	int best_move_index = -1;
 	NodeType nt = NT_LB;
 
@@ -363,27 +366,26 @@ int CEngine::negamax(int depth, int alpha, int beta, int color)
 		{
 			CBoardMutator mut(_b,mv);
 			const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
-			if (val > best)
+			if (val >= beta)
 			{
-				best = val;
-				best_move_index = i;
-			}
-			if (best > alpha)
-			{
-				alpha = best;
-				nt = NT_Exact;
-			}
-			if (best >= beta)
-			{
-				best = beta;
+				if (!mv.is_capture())
+					_killers.add_killer(_b.ply(), mv);
+
+				alpha = beta;
 				nt = NT_UB;
 				break;
+			}
+			if (val > alpha)
+			{
+				alpha = val;
+				best_move_index = i;
+				nt = NT_Exact;
 			}
 		}
 	}
 
-	tt.store_entry(STranspositionTableEntry(_b.hash(), depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), best, nt));
-	return best;
+	tt.store_entry(STranspositionTableEntry(_b.hash(), depth, (best_move_index > -1 ? moves_and_priorities[best_move_index].first : CMove()), alpha, nt));
+	return alpha;
 }
 
 CEngine::MoveResult CEngine::negamax_root(int depth)
@@ -401,7 +403,7 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 		vector<pair<CMove, int>> moves_and_priorities;
 		for (const auto & mv : _b.legal_moves())
 		{
-			moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _b.ply(), tte)));
+			moves_and_priorities.push_back(make_pair(mv, move_score(_b, mv, _killers, _b.ply(), tte)));
 		}
 
 		ASSERT(moves_and_priorities.size());
@@ -433,35 +435,19 @@ CEngine::MoveResult CEngine::negamax_root(int depth)
 				const int val = -TrimEvaluationForMate(negamax(depth - 1, -beta, -alpha, -color));
 
 				if (val >= beta)
+				{
+					if (!mv.is_capture())
+						_killers.add_killer(_b.ply(), mv);
 					continue;
+				}
 				if (val > alpha)
 				{
 					alpha = val;
-				}
-				if (val > best)
-				{
 					write_best_move(mv.long_algebraic(), val);
 					best = val;
 					best_move = mv;
 				}
 			}
-		}
-
-		{
-			NodeType nt;
-			if (best <= alpha)
-			{
-				nt = NT_LB;
-			}
-			else if (best >= beta)
-			{
-				nt = NT_UB;
-			}
-			else
-			{
-				nt = NT_Exact;
-			}
-			tt.store_entry(STranspositionTableEntry(_b.hash(), depth, *best_move, best, nt));
 		}
 	}
 	catch (CExceptionCancelled ex)
@@ -627,4 +613,31 @@ CMove CEngine::iterative_deepening()
 
 CEngine::~CEngine(void)
 {
+}
+
+CEngine::CKillerMoves::CKillerMoves()
+{
+
+}
+
+bool CEngine::CKillerMoves::is_killer(const int ply, const CMove mv)const
+{
+	if (ply <= _killers.size())
+		return false;
+
+	return find(_killers[ply].begin(), _killers[ply].end(), mv) != _killers[ply].end();
+}
+
+void CEngine::CKillerMoves::add_killer(const int ply, const CMove mv)
+{
+	if (ply >= _killers.size())
+	{
+		_killers.resize(ply + 20);
+	}
+	auto & thisPly = _killers[ply];
+	if (thisPly.size() >= 4)
+	{
+		thisPly.pop_back();
+	}
+	thisPly.insert(thisPly.begin(), mv);
 }

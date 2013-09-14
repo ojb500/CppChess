@@ -52,9 +52,17 @@ public:
 
 	int permill_full()const;
 
+	struct ZobristHasher
+	{
+		size_t operator()(const CZobrist& zob);	
+	};
 private:
+
+	void store_pv_entry(STranspositionTableEntry tte);
+
 	std::vector<STranspositionTableEntry> _table;
-	std::vector<STranspositionTableEntry> _pv;
+	//std::vector<STranspositionTableEntry> _pv;
+	std::unordered_map<CZobrist, STranspositionTableEntry, ZobristHasher> _pvmap;
 
 	size_t occupancy;
 	size_t collisions;

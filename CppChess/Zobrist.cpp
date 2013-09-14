@@ -32,6 +32,17 @@ void CZobrist::ApplyEnPassantFile(int file)
 {
 	ApplyIndex(EN_PASSANT_FILE_BEGIN + file);
 }
+void CZobrist::ApplyCastlingRight(chess::CASTLING_RIGHTS cr)
+{
+	if (cr & chess::CR_WK)
+		ApplyIndex(CASTLING_RIGHTS_BEGIN + 0);
+	if (cr & chess::CR_WQ)
+		ApplyIndex(CASTLING_RIGHTS_BEGIN + 1);
+	if (cr & chess::CR_BK)
+		ApplyIndex(CASTLING_RIGHTS_BEGIN + 2);
+	if (cr & chess::CR_BQ)
+		ApplyIndex(CASTLING_RIGHTS_BEGIN + 3);
+}
 
 uint64_t CZobrist::Hash()const
 {

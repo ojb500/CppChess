@@ -50,6 +50,7 @@ public:
 	void Apply(CZobrist other);
 
 	void ApplyEnPassantFile(int file);
+	void ApplyCastlingRight(chess::CASTLING_RIGHTS cr);
 
 	uint64_t Hash()const;
 	

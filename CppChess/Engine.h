@@ -34,10 +34,22 @@ public:
 
 	};
 
+	class CKillerMoves
+	{
+	public:
+		CKillerMoves();
+		void add_killer(const int ply, const CMove mv);
+		bool is_killer(const int ply, const CMove mv) const;
+	private:
+		std::vector<std::vector<CMove>> _killers;
+	};
+
 private:
 	volatile bool _cancelled;
 
 	std::chrono::steady_clock::time_point thinking_started;
+
+	size_t distance_from_root;
 
 	MoveResult negamax_root(int depth);
 	int negamax(int depth, int alpha, int beta, int color);
@@ -64,4 +76,6 @@ private:
 	
 	CUciSession & _s;
 	CBoard _b;
+
+	CKillerMoves _killers;
 };

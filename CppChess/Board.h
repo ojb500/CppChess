@@ -235,6 +235,8 @@ private:
 	void try_add_move(CBoard& b, std::vector<CMove> & v, CMove mv);
 	void try_add_castling_move(CBoard& b, std::vector<CMove> & v, CMove mv);
 
+	void remove_castling_right(chess::CASTLING_RIGHTS cr);
+
 	void clear_board();
 
 	static LookupTables createLookupTables();

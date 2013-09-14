@@ -44,14 +44,14 @@ int CBoard::game_stage() const
 	// A Q counts twice...
 	static CHeuristicParameters chp;
 	static const long max =		chp.get_value(chess::PAWN) * 16
-						+	chp.get_value(chess::KNIGHT) * 4
-						+	chp.get_value(chess::BISHOP) * 4
-						+	chp.get_value(chess::ROOK) * 4
-						+	chp.get_value(chess::QUEEN) * 4;
+		+	chp.get_value(chess::KNIGHT) * 4
+		+	chp.get_value(chess::BISHOP) * 4
+		+	chp.get_value(chess::ROOK) * 4
+		+	chp.get_value(chess::QUEEN) * 4;
 
 	// A guess at a reasonable amount of material for a typical endgame
 	static const long min =		chp.get_value(chess::PAWN) * 6
-							+	chp.get_value(chess::ROOK) * 1;
+		+	chp.get_value(chess::ROOK) * 1;
 
 	long current = 0;
 
@@ -66,7 +66,7 @@ int CBoard::game_stage() const
 
 
 	return 100 - std::max(0, std::min(100, 
-			static_cast<int>(static_cast<double>(current - min) / static_cast<double>(max - min) * 100.0)
+		static_cast<int>(static_cast<double>(current - min) / static_cast<double>(max - min) * 100.0)
 		));
 }
 
@@ -190,6 +190,16 @@ void CBoard::add_piece(CPiece p, chess::SQUARES sq)
 	put_piece_at(int_index(sq), p);
 };
 
+void CBoard::remove_castling_right(chess::CASTLING_RIGHTS cr)
+{
+	const chess::CASTLING_RIGHTS affected = chess::CASTLING_RIGHTS(_castling & cr);
+	if (affected != chess::CR_NONE)
+	{
+		_castling = chess::CASTLING_RIGHTS(_castling & ~affected);
+		_hash.ApplyCastlingRight(affected);
+	}
+}
+
 CBoard::CMemento CBoard::make_move(CMove mv) 
 {
 	CMemento mem(mv);
@@ -228,16 +238,16 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 				switch (to)
 				{
 				case A1: // WQ
-					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WQ);
+					remove_castling_right(chess::CR_WQ);
 					break;
 				case A8: // BQ
-					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BQ);
+					remove_castling_right(chess::CR_BQ);
 					break;
 				case H1: // WK
-					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WK);
+					remove_castling_right(chess::CR_WK);
 					break;
 				case H8: // BK
-					_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BK);
+					remove_castling_right(chess::CR_BK);
 					break;
 				}
 			}
@@ -247,11 +257,11 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 		{
 			if (moved.side() == chess::WHITE)
 			{
-				_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_WK | chess::CR_WQ));
+				remove_castling_right(chess::CR_WK | chess::CR_WQ);
 			}
 			else
 			{
-				_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_BK | chess::CR_BQ));
+				remove_castling_right(chess::CR_BK | chess::CR_BQ);
 			}
 		}
 		else if (moved.piece() == chess::ROOK)
@@ -259,16 +269,16 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 			switch (from)
 			{
 			case A1: // WQ
-				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WQ);
+				remove_castling_right(chess::CR_WQ);
 				break;
 			case A8: // BQ
-				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BQ);
+				remove_castling_right(chess::CR_BQ);
 				break;
 			case H1: // WK
-				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_WK);
+				remove_castling_right(chess::CR_WK);
 				break;
 			case H8: // BK
-				_castling = chess::CASTLING_RIGHTS(_castling & ~chess::CR_BK);
+				remove_castling_right(chess::CR_BK);
 				break;
 			}
 		}
@@ -348,11 +358,11 @@ CBoard::CMemento CBoard::make_move(CMove mv)
 
 		if (_side == chess::WHITE)
 		{
-			_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_WK | chess::CR_WQ));
+			remove_castling_right(chess::CR_WK | chess::CR_WQ);
 		}
 		else
 		{
-			_castling = static_cast<chess::CASTLING_RIGHTS>(_castling & ~(chess::CR_BK | chess::CR_BQ));
+			remove_castling_right(chess::CR_BK | chess::CR_BQ);
 		}
 
 		// find the rook - 960
@@ -436,7 +446,12 @@ void CBoard::unmake_move(CMemento m)
 		_hash.ApplyEnPassantFile(_en_passant_square & 7);
 	}
 
-	_castling = m.cr;
+	const chess::CASTLING_RIGHTS cr = chess::CASTLING_RIGHTS(m.cr ^ _castling);
+	if (cr != chess::CR_NONE)
+	{
+		_hash.ApplyCastlingRight(cr);
+		_castling = m.cr;
+	}
 
 	if (m.move.is_easy_move())
 	{

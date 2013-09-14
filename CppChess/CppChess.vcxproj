@@ -224,6 +224,7 @@ xcopy /y "$(ProjectDir)*.epd" "$(OutDir)"</Command>
     <ClCompile Include="Zobrist.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Mates.epd" />
     <None Include="perftsuite.epd">
       <DeploymentContent>true</DeploymentContent>
     </None>
